@@ -1,4 +1,40 @@
-# =========================================================
+import streamlit as st
+import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
+
+# 1. Titel der App (optional, aber schön)
+st.title("Meine private Visualisierung")
+
+# 2. Scope definieren (Google Drive Scope hilft oft beim Finden der Datei)
+scope = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+# 3. Verbindung aufbauen
+# WICHTIG: Das 'st.secrets' funktioniert nur, wenn du den JSON-Inhalt 
+# in Streamlit Cloud hinterlegt hast!
+creds = Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"],
+    scopes=scope
+)
+
+client = gspread.authorize(creds)
+
+# 4. Das Sheet öffnen
+# Deine ID aus dem Link ist korrekt eingesetzt
+sheet = client.open_by_key(
+    "1Z8tsOECgROa69aUUbST0Z5tE0Eh-lZoBv-e0os0DZvY"
+).sheet1
+
+# 5. Daten abrufen und in DataFrame umwandeln
+data = sheet.get_all_records()
+df_geo = pd.DataFrame(data)
+
+# 6. Daten in der App anzeigen
+st.write("Hier sind die Daten aus Google Sheets:")
+st.dataframe(df_geo)# =========================================================
 # STREAMLIT DASHBOARD
 # Unternehmensanalyse Österreich
 # =========================================================

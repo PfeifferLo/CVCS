@@ -53,7 +53,60 @@ data = sheet.get_all_records()
 
 df_geo = pd.DataFrame(data)
 
+numeric_columns = [
 
+    # Q9
+    "Q9 NEU_1","Q9 NEU_2","Q9 NEU_3","Q9 NEU_4",
+    "Q9 NEU_5","Q9 NEU_6","Q9 NEU_7","Q9 NEU_8",
+    "Q9 NEU_9","Q9 NEU_10","Q9 NEU_11","Q9 NEU_12",
+
+    # Q161
+    "Q161_1","Q161_2","Q161_3",
+    "Q161_4","Q161_5","Q161_6",
+
+    # Q16
+    "Q16_1","Q16_2","Q16_3","Q16_4","Q16_5",
+    "Q16_6","Q16_7","Q16_8","Q16_9","Q16_10",
+    "Q16_11","Q16_12","Q16_13",
+
+    # Q14
+    "Q14_1","Q14_2","Q14_3","Q14_4","Q14_5",
+
+    # Q15
+    "Q15_1","Q15_2","Q15_3","Q15_4",
+    "Q15_5","Q15_6","Q15_7",
+
+    # Q5
+    "Q5_3","Q5_4","Q5_5","Q5_6","Q5_7",
+    "Q5_8","Q5_9","Q5_10","Q5_12","Q5_13",
+    "Q5_14","Q5_15","Q5_16","Q5_17",
+    "Q5_18","Q5_19","Q5_20",
+
+    # Q6
+    "Q6_1","Q6_2","Q6_3","Q6_4",
+    "Q6_5","Q6_6","Q6_7","Q6_8",
+
+    # Q8
+    "Q8_Anzahl_Rstrategien",
+    "Q8_NEU_3","Q8_NEU_4","Q8_NEU_5",
+    "Q8_NEU_6","Q8_NEU_7","Q8_NEU_8",
+    "Q8_NEU_9","Q8_NEU_10","Q8_NEU_11","Q8_NEU_12",
+
+    # Sonstige
+    "Q41",
+    "Q42",
+    "latitude",
+    "longitude"
+]
+
+for col in numeric_columns:
+
+    if col in df_geo.columns:
+
+        df_geo[col] = pd.to_numeric(
+            df_geo[col],
+            errors="coerce"
+        )
 
 
 # =========================================================

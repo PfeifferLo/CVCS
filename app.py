@@ -28,7 +28,7 @@ st.set_page_config(
 st.title("Unternehmensanalyse Österreich")
 
 # =========================================================
-# GOOGLE SHEETS
+# GOOGLE SHEETS VERBINDUNG
 # =========================================================
 
 scope = [
@@ -51,25 +51,38 @@ data = sheet.get_all_records()
 df_geo = pd.DataFrame(data)
 
 # =========================================================
+# LATITUDE / LONGITUDE FIX
+# =========================================================
+
+df_geo["latitude"] = (
+    df_geo["latitude"]
+    .astype(str)
+    .str.replace(",", ".", regex=False)
+    .str.strip()
+)
+
+df_geo["longitude"] = (
+    df_geo["longitude"]
+    .astype(str)
+    .str.replace(",", ".", regex=False)
+    .str.strip()
+)
+
+df_geo["latitude"] = pd.to_numeric(
+    df_geo["latitude"],
+    errors="coerce"
+)
+
+df_geo["longitude"] = pd.to_numeric(
+    df_geo["longitude"],
+    errors="coerce"
+)
+
+# =========================================================
 # NUMERISCHE SPALTEN
 # =========================================================
 
-for col in df_geo.columns:
-
-    df_geo[col] = (
-        df_geo[col]
-        .astype(str)
-        .str.replace(",", ".", regex=False)
-    )
-
-# =========================================================
-# RELEVANTE SPALTEN
-# =========================================================
-
 numeric_columns = [
-
-    "latitude",
-    "longitude",
 
     "Q9 NEU_1","Q9 NEU_2","Q9 NEU_3","Q9 NEU_4",
     "Q9 NEU_5","Q9 NEU_6","Q9 NEU_7","Q9 NEU_8",
@@ -161,7 +174,8 @@ df_geo["Externer_Druck"] = df_geo[
 ].mean(axis=1)
 
 df_geo["Strategische_Integration"] = df_geo[
-    ["Q6_1","Q6_2","Q6_3","Q6_4","Q6_5","Q6_6","Q6_7","Q6_8"]
+    ["Q6_1","Q6_2","Q6_3","Q6_4",
+     "Q6_5","Q6_6","Q6_7","Q6_8"]
 ].mean(axis=1)
 
 df_geo["Firmengröße"] = df_geo["Q41"]
@@ -202,9 +216,9 @@ variable = st.sidebar.selectbox(
 
 radius = st.sidebar.slider(
     "Punktgröße",
-    3,
-    20,
-    8
+    4,
+    25,
+    12
 )
 
 # =========================================================
@@ -230,6 +244,19 @@ with tab1:
     ).copy()
 
     st.write("Anzahl Punkte:", len(map_data))
+
+    # =====================================================
+    # OPENSTREETMAP
+    # =====================================================
+
+    m = folium.Map(
+
+        location=[47.6, 14.3],
+
+        zoom_start=7,
+
+        tiles="OpenStreetMap"
+    )
 
     # =====================================================
     # FARBEN
@@ -259,20 +286,7 @@ with tab1:
             return "#2166ac"
 
     # =====================================================
-    # OPENSTREETMAP
-    # =====================================================
-
-    m = folium.Map(
-
-        location=[47.6, 14.3],
-
-        zoom_start=7,
-
-        tiles="OpenStreetMap"
-    )
-
-    # =====================================================
-    # MARKER
+    # FIRMENPUNKTE
     # =====================================================
 
     for _, row in map_data.iterrows():
@@ -283,31 +297,30 @@ with tab1:
             continue
 
         popup = f"""
-        <b>Firma:</b> {row.get('adresse', 'Keine Angabe')}<br><br>
-
         <b>Variable:</b> {variable}<br>
-
-        <b>Wert:</b> {round(value,2)}
+        <b>Wert:</b> {round(value,2)}<br><br>
+        <b>Latitude:</b> {row['latitude']}<br>
+        <b>Longitude:</b> {row['longitude']}
         """
 
         folium.CircleMarker(
 
             location=[
-                row["latitude"],
-                row["longitude"]
+                float(row["latitude"]),
+                float(row["longitude"])
             ],
 
             radius=radius,
 
             color="black",
 
-            weight=1.2,
+            weight=1.5,
 
             fill=True,
 
             fill_color=get_color(value),
 
-            fill_opacity=0.85,
+            fill_opacity=1,
 
             popup=popup
 
@@ -348,7 +361,7 @@ with tab1:
 
     st_folium(
         m,
-        width=1600,
+        width=1500,
         height=900
     )
 
@@ -395,10 +408,6 @@ with tab2:
         """
     )
 
-    # =====================================================
-    # SCATTERPLOT MIT REGRESSIONSLINIE
-    # =====================================================
-
     fig = px.scatter(
 
         corr_data,
@@ -409,18 +418,15 @@ with tab2:
 
         trendline="ols",
 
-        template="plotly_white",
-
-        opacity=0.75
+        template="plotly_white"
     )
 
     fig.update_traces(
-        marker=dict(size=9)
+        marker=dict(size=10)
     )
 
     fig.update_layout(
-        height=850,
-        title=f"{corr_x} vs {corr_y}"
+        height=850
     )
 
     st.plotly_chart(

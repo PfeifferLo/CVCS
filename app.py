@@ -28,7 +28,7 @@ st.set_page_config(
 st.title("Unternehmensanalyse Österreich")
 
 # =========================================================
-# GOOGLE SHEETS VERBINDUNG
+# GOOGLE SHEETS
 # =========================================================
 
 scope = [
@@ -54,7 +54,20 @@ df_geo = pd.DataFrame(data)
 # NUMERISCHE SPALTEN
 # =========================================================
 
+for col in df_geo.columns:
+
+    df_geo[col] = (
+        df_geo[col]
+        .astype(str)
+        .str.replace(",", ".", regex=False)
+    )
+
+# =========================================================
+# RELEVANTE SPALTEN
+# =========================================================
+
 numeric_columns = [
+
     "latitude",
     "longitude",
 
@@ -82,8 +95,6 @@ numeric_columns = [
     "Q6_1","Q6_2","Q6_3","Q6_4",
     "Q6_5","Q6_6","Q6_7","Q6_8",
 
-    "Q8_Anzahl_Rstrategien",
-
     "Q41",
     "Q42"
 ]
@@ -91,12 +102,6 @@ numeric_columns = [
 for col in numeric_columns:
 
     if col in df_geo.columns:
-
-        df_geo[col] = (
-            df_geo[col]
-            .astype(str)
-            .str.replace(",", ".", regex=False)
-        )
 
         df_geo[col] = pd.to_numeric(
             df_geo[col],
@@ -227,13 +232,43 @@ with tab1:
     st.write("Anzahl Punkte:", len(map_data))
 
     # =====================================================
-    # KARTE
+    # FARBEN
+    # =====================================================
+
+    def get_color(v):
+
+        if pd.isna(v):
+            return "gray"
+
+        if v <= 1:
+            return "#b2182b"
+
+        elif v <= 2:
+            return "#ef8a62"
+
+        elif v <= 3:
+            return "#fddbc7"
+
+        elif v <= 4:
+            return "#d1e5f0"
+
+        elif v <= 5:
+            return "#67a9cf"
+
+        else:
+            return "#2166ac"
+
+    # =====================================================
+    # OPENSTREETMAP
     # =====================================================
 
     m = folium.Map(
-        location=[47.5, 14.5],
+
+        location=[47.6, 14.3],
+
         zoom_start=7,
-        tiles="CartoDB positron"
+
+        tiles="OpenStreetMap"
     )
 
     # =====================================================
@@ -242,34 +277,74 @@ with tab1:
 
     for _, row in map_data.iterrows():
 
-        if pd.isna(row[variable]):
+        value = row[variable]
+
+        if pd.isna(value):
             continue
+
+        popup = f"""
+        <b>Firma:</b> {row.get('adresse', 'Keine Angabe')}<br><br>
+
+        <b>Variable:</b> {variable}<br>
+
+        <b>Wert:</b> {round(value,2)}
+        """
 
         folium.CircleMarker(
 
             location=[
-                float(row["latitude"]),
-                float(row["longitude"])
+                row["latitude"],
+                row["longitude"]
             ],
 
             radius=radius,
 
             color="black",
 
-            weight=1,
+            weight=1.2,
 
             fill=True,
 
-            fill_color="blue",
+            fill_color=get_color(value),
 
-            fill_opacity=0.7,
+            fill_opacity=0.85,
 
-            popup=f"""
-            <b>Variable:</b> {variable}<br>
-            <b>Wert:</b> {round(row[variable],2)}
-            """
+            popup=popup
 
         ).add_to(m)
+
+    # =====================================================
+    # LEGENDE
+    # =====================================================
+
+    legend_html = f"""
+    <div style="
+    position: fixed;
+    bottom: 40px;
+    right: 40px;
+    z-index:9999;
+    background-color:white;
+    padding:15px;
+    border:2px solid grey;
+    border-radius:10px;
+    font-size:14px;
+    ">
+
+    <b>{variable}</b><br><br>
+
+    <div style="background:#b2182b;width:20px;height:20px;display:inline-block;"></div> 1<br>
+    <div style="background:#ef8a62;width:20px;height:20px;display:inline-block;"></div> 2<br>
+    <div style="background:#fddbc7;width:20px;height:20px;display:inline-block;"></div> 3<br>
+    <div style="background:#d1e5f0;width:20px;height:20px;display:inline-block;"></div> 4<br>
+    <div style="background:#67a9cf;width:20px;height:20px;display:inline-block;"></div> 5<br>
+    <div style="background:#2166ac;width:20px;height:20px;display:inline-block;"></div> 6+
+
+    </div>
+    """
+
+    m.get_root().html.add_child(
+        folium.Element(legend_html)
+    )
 
     st_folium(
         m,
@@ -321,7 +396,7 @@ with tab2:
     )
 
     # =====================================================
-    # PLOT
+    # SCATTERPLOT MIT REGRESSIONSLINIE
     # =====================================================
 
     fig = px.scatter(
@@ -336,11 +411,16 @@ with tab2:
 
         template="plotly_white",
 
-        opacity=0.7
+        opacity=0.75
+    )
+
+    fig.update_traces(
+        marker=dict(size=9)
     )
 
     fig.update_layout(
-        height=800
+        height=850,
+        title=f"{corr_x} vs {corr_y}"
     )
 
     st.plotly_chart(

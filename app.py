@@ -264,7 +264,7 @@ tab1, tab2, tab3 = st.tabs([
 # KARTE
 # =========================================================
 
-   with tab1:
+with tab1:
 
     st.subheader("Unternehmenskarte Österreich")
 

@@ -30,10 +30,29 @@ st.title("Unternehmensanalyse Österreich")
 # DATEN LADEN
 # =========================================================
 
-df_geo = pd.read_csv(
-    "df_geo.csv",
-    encoding="utf-8"
+
+import gspread
+from google.oauth2.service_account import Credentials
+
+scope = [
+    "https://www.googleapis.com/auth/spreadsheets"
+]
+
+creds = Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"],
+    scopes=scope
 )
+
+client = gspread.authorize(creds)
+
+sheet = client.open("df_geo").sheet1
+
+data = sheet.get_all_records()
+
+df_geo = pd.DataFrame(data)
+
+
+
 
 # =========================================================
 # KONSTRUKTE

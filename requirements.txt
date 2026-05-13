@@ -6,4 +6,6 @@ plotly
 scipy
 gspread
 google-auth
+geopy
+branca
 statsmodels

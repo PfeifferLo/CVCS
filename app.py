@@ -1,4 +1,206 @@
 # =========================================================
+# KARTE
+# =========================================================
+
+with tab1:
+
+    st.subheader("Unternehmenskarte Österreich")
+
+    # =====================================================
+    # NUR GÜLTIGE DATEN
+    # =====================================================
+
+    map_data = df.dropna(
+        subset=["latitude", "longitude", variable]
+    ).copy()
+
+    # Österreich Filter
+    map_data = map_data[
+        (map_data["latitude"] > 46) &
+        (map_data["latitude"] < 49.5) &
+        (map_data["longitude"] > 9) &
+        (map_data["longitude"] < 18.5)
+    ]
+
+    st.write("Anzahl Firmen auf Karte:", len(map_data))
+
+    # =====================================================
+    # KARTE
+    # =====================================================
+
+    m = folium.Map(
+        location=[47.6, 14.5],
+        zoom_start=7,
+        tiles="OpenStreetMap"
+    )
+
+    # =====================================================
+    # VARIABLE TYPEN
+    # =====================================================
+
+    vi_variablen = [
+        "VI_Mittelwert",
+        "VI_Closing",
+        "VI_Slowing"
+    ]
+
+    # =====================================================
+    # FARBEN + LEGENDE
+    # =====================================================
+
+    # -----------------------------------------------------
+    # VI 1-7
+    # -----------------------------------------------------
+
+    if variable in vi_variablen:
+
+        def get_color(v):
+
+            if v <= 1:
+                return "#b2182b"
+
+            elif v <= 2:
+                return "#d6604d"
+
+            elif v <= 3:
+                return "#f4a582"
+
+            elif v <= 4:
+                return "#fddbc7"
+
+            elif v <= 5:
+                return "#92c5de"
+
+            elif v <= 6:
+                return "#4393c3"
+
+            else:
+                return "#2166ac"
+
+        legend_html = f"""
+        <div style="
+        position: fixed;
+        bottom: 40px;
+        right: 40px;
+        z-index:9999;
+        background-color:white;
+        padding:15px;
+        border:2px solid grey;
+        border-radius:10px;
+        font-size:14px;
+        ">
+
+        <b>{variable}</b><br><br>
+
+        <div style="background:#b2182b;width:20px;height:20px;display:inline-block;"></div> 1<br>
+        <div style="background:#d6604d;width:20px;height:20px;display:inline-block;"></div> 2<br>
+        <div style="background:#f4a582;width:20px;height:20px;display:inline-block;"></div> 3<br>
+        <div style="background:#fddbc7;width:20px;height:20px;display:inline-block;"></div> 4<br>
+        <div style="background:#92c5de;width:20px;height:20px;display:inline-block;"></div> 5<br>
+        <div style="background:#4393c3;width:20px;height:20px;display:inline-block;"></div> 6<br>
+        <div style="background:#2166ac;width:20px;height:20px;display:inline-block;"></div> 7
+
+        </div>
+        """
+
+    # -----------------------------------------------------
+    # STANDARD 1-5
+    # -----------------------------------------------------
+
+    else:
+
+        def get_color(v):
+
+            if v <= 1:
+                return "#d73027"
+
+            elif v <= 2:
+                return "#fc8d59"
+
+            elif v <= 3:
+                return "#fee08b"
+
+            elif v <= 4:
+                return "#91cf60"
+
+            else:
+                return "#1a9850"
+
+        legend_html = f"""
+        <div style="
+        position: fixed;
+        bottom: 40px;
+        right: 40px;
+        z-index:9999;
+        background-color:white;
+        padding:15px;
+        border:2px solid grey;
+        border-radius:10px;
+        font-size:14px;
+        ">
+
+        <b>{variable}</b><br><br>
+
+        <div style="background:#d73027;width:20px;height:20px;display:inline-block;"></div> 1<br>
+        <div style="background:#fc8d59;width:20px;height:20px;display:inline-block;"></div> 2<br>
+        <div style="background:#fee08b;width:20px;height:20px;display:inline-block;"></div> 3<br>
+        <div style="background:#91cf60;width:20px;height:20px;display:inline-block;"></div> 4<br>
+        <div style="background:#1a9850;width:20px;height:20px;display:inline-block;"></div> 5
+
+        </div>
+        """
+
+    # =====================================================
+    # MARKER
+    # =====================================================
+
+    for _, row in map_data.iterrows():
+
+        popup = f"""
+        <b>Variable:</b> {variable}<br>
+        <b>Wert:</b> {round(row[variable],2)}
+        """
+
+        folium.CircleMarker(
+
+            location=[
+                row["latitude"],
+                row["longitude"]
+            ],
+
+            radius=radius,
+
+            color="black",
+
+            weight=1,
+
+            fill=True,
+
+            fill_color=get_color(row[variable]),
+
+            fill_opacity=0.9,
+
+            popup=popup
+
+        ).add_to(m)
+
+    # =====================================================
+    # LEGENDE
+    # =====================================================
+
+    m.get_root().html.add_child(
+        folium.Element(legend_html)
+    )
+
+    # =====================================================
+    # KARTE ZEIGEN
+    # =====================================================
+
+    st_folium(
+        m,
+        width=1400,
+        height=850
+    )# =========================================================
 # STREAMLIT DASHBOARD
 # Unternehmensanalyse Österreich
 # =========================================================

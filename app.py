@@ -45,7 +45,9 @@ creds = Credentials.from_service_account_info(
 
 client = gspread.authorize(creds)
 
-sheet = client.open("df_geo").sheet1
+sheet = client.open_by_key(
+    "1Z8tsOECgROa69aUUbST0Z5tE0Eh-lZoBv-e0os0DZvY"
+).sheet1
 
 data = sheet.get_all_records()
 

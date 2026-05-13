@@ -55,7 +55,6 @@ df_geo = pd.DataFrame(data)
 # =========================================================
 
 numeric_columns = [
-
     "latitude",
     "longitude",
 
@@ -84,9 +83,6 @@ numeric_columns = [
     "Q6_5","Q6_6","Q6_7","Q6_8",
 
     "Q8_Anzahl_Rstrategien",
-    "Q8_NEU_3","Q8_NEU_4","Q8_NEU_5",
-    "Q8_NEU_6","Q8_NEU_7","Q8_NEU_8",
-    "Q8_NEU_9","Q8_NEU_10","Q8_NEU_11","Q8_NEU_12",
 
     "Q41",
     "Q42"
@@ -95,6 +91,12 @@ numeric_columns = [
 for col in numeric_columns:
 
     if col in df_geo.columns:
+
+        df_geo[col] = (
+            df_geo[col]
+            .astype(str)
+            .str.replace(",", ".", regex=False)
+        )
 
         df_geo[col] = pd.to_numeric(
             df_geo[col],
@@ -133,24 +135,12 @@ df_geo["Ökologische_Performance"] = df_geo[
     ]
 ].mean(axis=1)
 
-df_geo["Produktlebensdauer"] = df_geo[
-    ["Q16_3","Q16_4"]
-].mean(axis=1)
-
-df_geo["Toxische_Freisetzung"] = df_geo[
-    ["Q16_6","Q16_7"]
-].mean(axis=1)
-
 df_geo["Loop_Closure"] = df_geo[
     ["Q14_1","Q14_2"]
 ].mean(axis=1)
 
 df_geo["Open_Loops"] = df_geo[
     ["Q14_3","Q14_4","Q14_5"]
-].mean(axis=1)
-
-df_geo["Austausch"] = df_geo[
-    ["Q15_1","Q15_2"]
 ].mean(axis=1)
 
 df_geo["Erkenntnisse"] = df_geo[
@@ -165,19 +155,9 @@ df_geo["Externer_Druck"] = df_geo[
     ["Q5_5","Q5_6","Q5_7"]
 ].mean(axis=1)
 
-df_geo["Lern_und_Kooperationsorientierung"] = df_geo[
-    ["Q5_12","Q5_13","Q5_14","Q5_15","Q5_17"]
-].mean(axis=1)
-
-df_geo["Differenzierungs_Wettbewerbsorientierung"] = df_geo[
-    ["Q5_4","Q5_8","Q5_9","Q5_10"]
-].mean(axis=1)
-
 df_geo["Strategische_Integration"] = df_geo[
     ["Q6_1","Q6_2","Q6_3","Q6_4","Q6_5","Q6_6","Q6_7","Q6_8"]
 ].mean(axis=1)
-
-df_geo["Anzahl_Rstrategien"] = df_geo["Q8_Anzahl_Rstrategien"]
 
 df_geo["Firmengröße"] = df_geo["Q41"]
 
@@ -194,18 +174,12 @@ alle_variablen = [
     "VI_Slowing",
     "Ökonomische_Performance",
     "Ökologische_Performance",
-    "Produktlebensdauer",
-    "Toxische_Freisetzung",
     "Loop_Closure",
     "Open_Loops",
-    "Austausch",
     "Erkenntnisse",
     "Legitimität",
     "Externer_Druck",
-    "Lern_und_Kooperationsorientierung",
-    "Differenzierungs_Wettbewerbsorientierung",
     "Strategische_Integration",
-    "Anzahl_Rstrategien",
     "Firmengröße",
     "Firmenalter"
 ]
@@ -248,34 +222,34 @@ with tab1:
 
     map_data = df_geo.dropna(
         subset=["latitude", "longitude"]
-    )
+    ).copy()
 
     st.write("Anzahl Punkte:", len(map_data))
 
+    # =====================================================
+    # KARTE
+    # =====================================================
+
     m = folium.Map(
-
-        location=[
-            map_data["latitude"].mean(),
-            map_data["longitude"].mean()
-        ],
-
+        location=[47.5, 14.5],
         zoom_start=7,
-
-        tiles="OpenStreetMap"
+        tiles="CartoDB positron"
     )
+
+    # =====================================================
+    # MARKER
+    # =====================================================
 
     for _, row in map_data.iterrows():
 
-        value = row[variable]
-
-        if pd.isna(value):
+        if pd.isna(row[variable]):
             continue
 
         folium.CircleMarker(
 
             location=[
-                row["latitude"],
-                row["longitude"]
+                float(row["latitude"]),
+                float(row["longitude"])
             ],
 
             radius=radius,
@@ -288,11 +262,11 @@ with tab1:
 
             fill_color="blue",
 
-            fill_opacity=0.8,
+            fill_opacity=0.7,
 
             popup=f"""
-            Variable: {variable}
-            Wert: {round(value,2)}
+            <b>Variable:</b> {variable}<br>
+            <b>Wert:</b> {round(row[variable],2)}
             """
 
         ).add_to(m)
@@ -346,6 +320,10 @@ with tab2:
         """
     )
 
+    # =====================================================
+    # PLOT
+    # =====================================================
+
     fig = px.scatter(
 
         corr_data,
@@ -354,9 +332,15 @@ with tab2:
 
         y=corr_y,
 
+        trendline="ols",
+
         template="plotly_white",
 
-        opacity=0.75
+        opacity=0.7
+    )
+
+    fig.update_layout(
+        height=800
     )
 
     st.plotly_chart(

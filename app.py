@@ -1,22 +1,24 @@
 # =========================================================
 # STREAMLIT DASHBOARD
 # Unternehmensanalyse Österreich
-# MIT SIGNIFIKANZEN + INTERAKTIVER KARTE
 # =========================================================
 
 import streamlit as st
 import pandas as pd
 import folium
-from streamlit_folium import st_folium
 import plotly.express as px
+import gspread
+
 from scipy.stats import pearsonr
+from streamlit_folium import st_folium
+from google.oauth2.service_account import Credentials
 
 # =========================================================
 # PAGE CONFIG
 # =========================================================
 
 st.set_page_config(
-    page_title="Unternehmensanalyse Österreich",
+    page_title="Ergebnisse CVCS",
     layout="wide"
 )
 
@@ -27,12 +29,8 @@ st.set_page_config(
 st.title("Unternehmensanalyse Österreich")
 
 # =========================================================
-# DATEN LADEN
+# GOOGLE SHEETS VERBINDUNG
 # =========================================================
-
-
-import gspread
-from google.oauth2.service_account import Credentials
 
 scope = [
     "https://www.googleapis.com/auth/spreadsheets"
@@ -52,6 +50,10 @@ sheet = client.open_by_key(
 data = sheet.get_all_records()
 
 df_geo = pd.DataFrame(data)
+
+# =========================================================
+# NUMERISCHE SPALTEN
+# =========================================================
 
 numeric_columns = [
 
@@ -103,11 +105,16 @@ for col in numeric_columns:
 
     if col in df_geo.columns:
 
+        df_geo[col] = (
+            df_geo[col]
+            .astype(str)
+            .str.replace(",", ".")
+        )
+
         df_geo[col] = pd.to_numeric(
             df_geo[col],
             errors="coerce"
         )
-
 
 # =========================================================
 # KONSTRUKTE
@@ -135,8 +142,9 @@ df_geo["Ökonomische_Performance"] = df_geo[
 
 df_geo["Ökologische_Performance"] = df_geo[
     [
-        "Q16_1","Q16_2","Q16_3","Q16_4","Q16_5","Q16_6",
-        "Q16_7","Q16_8","Q16_9","Q16_10","Q16_11","Q16_12","Q16_13"
+        "Q16_1","Q16_2","Q16_3","Q16_4","Q16_5",
+        "Q16_6","Q16_7","Q16_8","Q16_9","Q16_10",
+        "Q16_11","Q16_12","Q16_13"
     ]
 ].mean(axis=1)
 
@@ -191,7 +199,8 @@ df_geo["Anzahl_Closing_Strategien"] = df_geo[
 ].sum(axis=1)
 
 df_geo["Anzahl_Slowing_Strategien"] = df_geo[
-    ["Q8_NEU_3","Q8_NEU_4","Q8_NEU_5","Q8_NEU_6","Q8_NEU_7","Q8_NEU_8"]
+    ["Q8_NEU_3","Q8_NEU_4","Q8_NEU_5",
+     "Q8_NEU_6","Q8_NEU_7","Q8_NEU_8"]
 ].sum(axis=1)
 
 df_geo["Firmengröße"] = df_geo["Q41"]
@@ -272,35 +281,17 @@ with tab1:
         subset=["latitude", "longitude"]
     )
 
-    # =====================================================
-    # LATITUDE / LONGITUDE FIX
-    # =====================================================
+    vi_variablen = [
+        "VI_Mittelwert",
+        "VI_Closing",
+        "VI_Slowing"
+    ]
 
-    map_data["latitude"] = (
-        map_data["latitude"]
-        .astype(str)
-        .str.replace(",", ".")
-    )
-
-    map_data["longitude"] = (
-        map_data["longitude"]
-        .astype(str)
-        .str.replace(",", ".")
-    )
-
-    map_data["latitude"] = pd.to_numeric(
-        map_data["latitude"],
-        errors="coerce"
-    )
-
-    map_data["longitude"] = pd.to_numeric(
-        map_data["longitude"],
-        errors="coerce"
-    )
-
-    # =====================================================
-    # KARTE
-    # =====================================================
+    anzahl_variablen = [
+        "Anzahl_Rstrategien",
+        "Anzahl_Closing_Strategien",
+        "Anzahl_Slowing_Strategien"
+    ]
 
     m = folium.Map(
 
@@ -315,7 +306,7 @@ with tab1:
     )
 
     # =====================================================
-    # VI 1-7
+    # FARBEN
     # =====================================================
 
     if variable in vi_variablen:
@@ -324,54 +315,18 @@ with tab1:
 
             if v <= 1:
                 return "#b2182b"
-
             elif v <= 2:
                 return "#d6604d"
-
             elif v <= 3:
                 return "#f4a582"
-
             elif v <= 4:
                 return "#fddbc7"
-
             elif v <= 5:
                 return "#92c5de"
-
             elif v <= 6:
                 return "#4393c3"
-
             else:
                 return "#2166ac"
-
-        legend_html = f"""
-        <div style="
-        position: fixed;
-        bottom: 40px;
-        right: 40px;
-        z-index:9999;
-        background-color:white;
-        padding:15px;
-        border:2px solid grey;
-        border-radius:10px;
-        font-size:14px;
-        ">
-
-        <b>{variable}</b><br><br>
-
-        <div style="background:#b2182b;width:20px;height:20px;display:inline-block;"></div> 1<br>
-        <div style="background:#d6604d;width:20px;height:20px;display:inline-block;"></div> 2<br>
-        <div style="background:#f4a582;width:20px;height:20px;display:inline-block;"></div> 3<br>
-        <div style="background:#fddbc7;width:20px;height:20px;display:inline-block;"></div> 4<br>
-        <div style="background:#92c5de;width:20px;height:20px;display:inline-block;"></div> 5<br>
-        <div style="background:#4393c3;width:20px;height:20px;display:inline-block;"></div> 6<br>
-        <div style="background:#2166ac;width:20px;height:20px;display:inline-block;"></div> 7
-
-        </div>
-        """
-
-    # =====================================================
-    # ANZAHL 1-12
-    # =====================================================
 
     elif variable in anzahl_variablen:
 
@@ -379,50 +334,16 @@ with tab1:
 
             if v <= 2:
                 return "#ffffcc"
-
             elif v <= 4:
                 return "#c2e699"
-
             elif v <= 6:
                 return "#78c679"
-
             elif v <= 8:
                 return "#31a354"
-
             elif v <= 10:
                 return "#006837"
-
             else:
                 return "#004529"
-
-        legend_html = f"""
-        <div style="
-        position: fixed;
-        bottom: 40px;
-        right: 40px;
-        z-index:9999;
-        background-color:white;
-        padding:15px;
-        border:2px solid grey;
-        border-radius:10px;
-        font-size:14px;
-        ">
-
-        <b>{variable}</b><br><br>
-
-        <div style="background:#ffffcc;width:20px;height:20px;display:inline-block;"></div> 1-2<br>
-        <div style="background:#c2e699;width:20px;height:20px;display:inline-block;"></div> 3-4<br>
-        <div style="background:#78c679;width:20px;height:20px;display:inline-block;"></div> 5-6<br>
-        <div style="background:#31a354;width:20px;height:20px;display:inline-block;"></div> 7-8<br>
-        <div style="background:#006837;width:20px;height:20px;display:inline-block;"></div> 9-10<br>
-        <div style="background:#004529;width:20px;height:20px;display:inline-block;"></div> 11-12
-
-        </div>
-        """
-
-    # =====================================================
-    # STANDARD 1-5
-    # =====================================================
 
     else:
 
@@ -430,42 +351,14 @@ with tab1:
 
             if v <= 1:
                 return "#d73027"
-
             elif v <= 2:
                 return "#fc8d59"
-
             elif v <= 3:
                 return "#fee08b"
-
             elif v <= 4:
                 return "#91cf60"
-
             else:
                 return "#1a9850"
-
-        legend_html = f"""
-        <div style="
-        position: fixed;
-        bottom: 40px;
-        right: 40px;
-        z-index:9999;
-        background-color:white;
-        padding:15px;
-        border:2px solid grey;
-        border-radius:10px;
-        font-size:14px;
-        ">
-
-        <b>{variable}</b><br><br>
-
-        <div style="background:#d73027;width:20px;height:20px;display:inline-block;"></div> 1<br>
-        <div style="background:#fc8d59;width:20px;height:20px;display:inline-block;"></div> 2<br>
-        <div style="background:#fee08b;width:20px;height:20px;display:inline-block;"></div> 3<br>
-        <div style="background:#91cf60;width:20px;height:20px;display:inline-block;"></div> 4<br>
-        <div style="background:#1a9850;width:20px;height:20px;display:inline-block;"></div> 5
-
-        </div>
-        """
 
     # =====================================================
     # MARKER
@@ -479,13 +372,8 @@ with tab1:
             continue
 
         popup = f"""
-        <b>Firma:</b> {row.get('Zugehörigkeit', 'Keine Angabe')}<br><br>
-
         <b>Variable:</b> {variable}<br>
-
-        <b>Wert:</b> {round(value,2)}<br><br>
-
-        <b>Adresse:</b> {row.get('adresse', 'Keine Angabe')}
+        <b>Wert:</b> {round(value,2)}
         """
 
         folium.CircleMarker(
@@ -510,10 +398,6 @@ with tab1:
             popup=popup
 
         ).add_to(m)
-
-    m.get_root().html.add_child(
-        folium.Element(legend_html)
-    )
 
     st_folium(
         m,
@@ -555,10 +439,6 @@ with tab2:
         corr_data[corr_x],
         corr_data[corr_y]
     )
-
-    # =====================================================
-    # SIGNIFIKANZ
-    # =====================================================
 
     if pval < 0.001:
         signif = "*** hoch signifikant"

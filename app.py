@@ -264,13 +264,43 @@ tab1, tab2, tab3 = st.tabs([
 # KARTE
 # =========================================================
 
-with tab1:
+   with tab1:
 
     st.subheader("Unternehmenskarte Österreich")
 
     map_data = df_geo.dropna(
         subset=["latitude", "longitude"]
     )
+
+    # =====================================================
+    # LATITUDE / LONGITUDE FIX
+    # =====================================================
+
+    map_data["latitude"] = (
+        map_data["latitude"]
+        .astype(str)
+        .str.replace(",", ".")
+    )
+
+    map_data["longitude"] = (
+        map_data["longitude"]
+        .astype(str)
+        .str.replace(",", ".")
+    )
+
+    map_data["latitude"] = pd.to_numeric(
+        map_data["latitude"],
+        errors="coerce"
+    )
+
+    map_data["longitude"] = pd.to_numeric(
+        map_data["longitude"],
+        errors="coerce"
+    )
+
+    # =====================================================
+    # KARTE
+    # =====================================================
 
     m = folium.Map(
 
@@ -283,18 +313,6 @@ with tab1:
 
         tiles="OpenStreetMap"
     )
-
-    vi_variablen = [
-        "VI_Mittelwert",
-        "VI_Closing",
-        "VI_Slowing"
-    ]
-
-    anzahl_variablen = [
-        "Anzahl_Rstrategien",
-        "Anzahl_Closing_Strategien",
-        "Anzahl_Slowing_Strategien"
-    ]
 
     # =====================================================
     # VI 1-7

@@ -6,11 +6,10 @@
 import streamlit as st
 import pandas as pd
 import folium
-import plotly.express as px
-import gspread
-
-from scipy.stats import pearsonr
 from streamlit_folium import st_folium
+import plotly.express as px
+from scipy.stats import pearsonr
+import gspread
 from google.oauth2.service_account import Credentials
 
 # =========================================================
@@ -18,7 +17,7 @@ from google.oauth2.service_account import Credentials
 # =========================================================
 
 st.set_page_config(
-    page_title="Ergebnisse CVCS",
+    page_title="Unternehmensanalyse Österreich",
     layout="wide"
 )
 
@@ -57,59 +56,45 @@ df_geo = pd.DataFrame(data)
 
 numeric_columns = [
 
-    # Q9
+    "latitude",
+    "longitude",
+
     "Q9 NEU_1","Q9 NEU_2","Q9 NEU_3","Q9 NEU_4",
     "Q9 NEU_5","Q9 NEU_6","Q9 NEU_7","Q9 NEU_8",
     "Q9 NEU_9","Q9 NEU_10","Q9 NEU_11","Q9 NEU_12",
 
-    # Q161
     "Q161_1","Q161_2","Q161_3",
     "Q161_4","Q161_5","Q161_6",
 
-    # Q16
     "Q16_1","Q16_2","Q16_3","Q16_4","Q16_5",
     "Q16_6","Q16_7","Q16_8","Q16_9","Q16_10",
     "Q16_11","Q16_12","Q16_13",
 
-    # Q14
     "Q14_1","Q14_2","Q14_3","Q14_4","Q14_5",
 
-    # Q15
     "Q15_1","Q15_2","Q15_3","Q15_4",
     "Q15_5","Q15_6","Q15_7",
 
-    # Q5
     "Q5_3","Q5_4","Q5_5","Q5_6","Q5_7",
     "Q5_8","Q5_9","Q5_10","Q5_12","Q5_13",
     "Q5_14","Q5_15","Q5_16","Q5_17",
     "Q5_18","Q5_19","Q5_20",
 
-    # Q6
     "Q6_1","Q6_2","Q6_3","Q6_4",
     "Q6_5","Q6_6","Q6_7","Q6_8",
 
-    # Q8
     "Q8_Anzahl_Rstrategien",
     "Q8_NEU_3","Q8_NEU_4","Q8_NEU_5",
     "Q8_NEU_6","Q8_NEU_7","Q8_NEU_8",
     "Q8_NEU_9","Q8_NEU_10","Q8_NEU_11","Q8_NEU_12",
 
-    # Sonstige
     "Q41",
-    "Q42",
-    "latitude",
-    "longitude"
+    "Q42"
 ]
 
 for col in numeric_columns:
 
     if col in df_geo.columns:
-
-        df_geo[col] = (
-            df_geo[col]
-            .astype(str)
-            .str.replace(",", ".")
-        )
 
         df_geo[col] = pd.to_numeric(
             df_geo[col],
@@ -194,16 +179,8 @@ df_geo["Strategische_Integration"] = df_geo[
 
 df_geo["Anzahl_Rstrategien"] = df_geo["Q8_Anzahl_Rstrategien"]
 
-df_geo["Anzahl_Closing_Strategien"] = df_geo[
-    ["Q8_NEU_9","Q8_NEU_10","Q8_NEU_11","Q8_NEU_12"]
-].sum(axis=1)
-
-df_geo["Anzahl_Slowing_Strategien"] = df_geo[
-    ["Q8_NEU_3","Q8_NEU_4","Q8_NEU_5",
-     "Q8_NEU_6","Q8_NEU_7","Q8_NEU_8"]
-].sum(axis=1)
-
 df_geo["Firmengröße"] = df_geo["Q41"]
+
 df_geo["Firmenalter"] = df_geo["Q42"]
 
 # =========================================================
@@ -215,28 +192,20 @@ alle_variablen = [
     "VI_Mittelwert",
     "VI_Closing",
     "VI_Slowing",
-
     "Ökonomische_Performance",
     "Ökologische_Performance",
     "Produktlebensdauer",
     "Toxische_Freisetzung",
-
     "Loop_Closure",
     "Open_Loops",
     "Austausch",
     "Erkenntnisse",
-
     "Legitimität",
     "Externer_Druck",
     "Lern_und_Kooperationsorientierung",
     "Differenzierungs_Wettbewerbsorientierung",
-
     "Strategische_Integration",
-
     "Anzahl_Rstrategien",
-    "Anzahl_Closing_Strategien",
-    "Anzahl_Slowing_Strategien",
-
     "Firmengröße",
     "Firmenalter"
 ]
@@ -281,17 +250,7 @@ with tab1:
         subset=["latitude", "longitude"]
     )
 
-    vi_variablen = [
-        "VI_Mittelwert",
-        "VI_Closing",
-        "VI_Slowing"
-    ]
-
-    anzahl_variablen = [
-        "Anzahl_Rstrategien",
-        "Anzahl_Closing_Strategien",
-        "Anzahl_Slowing_Strategien"
-    ]
+    st.write("Anzahl Punkte:", len(map_data))
 
     m = folium.Map(
 
@@ -305,76 +264,12 @@ with tab1:
         tiles="OpenStreetMap"
     )
 
-    # =====================================================
-    # FARBEN
-    # =====================================================
-
-    if variable in vi_variablen:
-
-        def get_color(v):
-
-            if v <= 1:
-                return "#b2182b"
-            elif v <= 2:
-                return "#d6604d"
-            elif v <= 3:
-                return "#f4a582"
-            elif v <= 4:
-                return "#fddbc7"
-            elif v <= 5:
-                return "#92c5de"
-            elif v <= 6:
-                return "#4393c3"
-            else:
-                return "#2166ac"
-
-    elif variable in anzahl_variablen:
-
-        def get_color(v):
-
-            if v <= 2:
-                return "#ffffcc"
-            elif v <= 4:
-                return "#c2e699"
-            elif v <= 6:
-                return "#78c679"
-            elif v <= 8:
-                return "#31a354"
-            elif v <= 10:
-                return "#006837"
-            else:
-                return "#004529"
-
-    else:
-
-        def get_color(v):
-
-            if v <= 1:
-                return "#d73027"
-            elif v <= 2:
-                return "#fc8d59"
-            elif v <= 3:
-                return "#fee08b"
-            elif v <= 4:
-                return "#91cf60"
-            else:
-                return "#1a9850"
-
-    # =====================================================
-    # MARKER
-    # =====================================================
-
     for _, row in map_data.iterrows():
 
         value = row[variable]
 
         if pd.isna(value):
             continue
-
-        popup = f"""
-        <b>Variable:</b> {variable}<br>
-        <b>Wert:</b> {round(value,2)}
-        """
 
         folium.CircleMarker(
 
@@ -391,18 +286,21 @@ with tab1:
 
             fill=True,
 
-            fill_color=get_color(value),
+            fill_color="blue",
 
-            fill_opacity=0.9,
+            fill_opacity=0.8,
 
-            popup=popup
+            popup=f"""
+            Variable: {variable}
+            Wert: {round(value,2)}
+            """
 
         ).add_to(m)
 
     st_folium(
         m,
         width=1600,
-        height=950
+        height=900
     )
 
 # =========================================================
@@ -440,25 +338,11 @@ with tab2:
         corr_data[corr_y]
     )
 
-    if pval < 0.001:
-        signif = "*** hoch signifikant"
-
-    elif pval < 0.01:
-        signif = "** signifikant"
-
-    elif pval < 0.05:
-        signif = "* schwach signifikant"
-
-    else:
-        signif = "nicht signifikant"
-
     st.markdown(
         f"""
         ## Pearson r = {corr:.3f}
 
         ### p-Wert = {pval:.5f}
-
-        ### Signifikanz: {signif}
         """
     )
 
@@ -470,16 +354,9 @@ with tab2:
 
         y=corr_y,
 
-        trendline="ols",
-
         template="plotly_white",
 
         opacity=0.75
-    )
-
-    fig.update_layout(
-        height=850,
-        title=f"{corr_x} vs {corr_y}"
     )
 
     st.plotly_chart(

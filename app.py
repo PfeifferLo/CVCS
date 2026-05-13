@@ -28,7 +28,7 @@ st.set_page_config(
 st.title("Unternehmensanalyse Österreich")
 
 # =========================================================
-# GOOGLE SHEETS VERBINDUNG
+# GOOGLE SHEETS
 # =========================================================
 
 scope = [
@@ -51,22 +51,42 @@ data = sheet.get_all_records()
 df_geo = pd.DataFrame(data)
 
 # =========================================================
-# LATITUDE / LONGITUDE FIX
+# SPALTENNAMEN BEREINIGEN
 # =========================================================
 
-def parse_coord(series):
-    cleaned = (
-        series
-        .astype(str)
-        .str.strip()
-        .str.replace(",", ".", regex=False)      # Komma → Punkt (österr. Format)
-        .str.replace(r"[^\d.\-]", "", regex=True) # "NA", Leerzeichen etc. entfernen
-    )
-    cleaned = cleaned.replace("", float("nan"))   # leere Strings → NaN
-    return pd.to_numeric(cleaned, errors="coerce")
+df_geo.columns = df_geo.columns.str.strip()
 
-df_geo["latitude"]  = parse_coord(df_geo["latitude"])
-df_geo["longitude"] = parse_coord(df_geo["longitude"])
+# =========================================================
+# LATITUDE / LONGITUDE CLEANING
+# =========================================================
+
+df_geo["latitude"] = (
+    df_geo["latitude"]
+    .astype(str)
+    .str.replace(",", ".", regex=False)
+    .str.strip()
+)
+
+df_geo["longitude"] = (
+    df_geo["longitude"]
+    .astype(str)
+    .str.replace(",", ".", regex=False)
+    .str.strip()
+)
+
+# =========================================================
+# FLOAT UMWANDLUNG
+# =========================================================
+
+df_geo["latitude"] = pd.to_numeric(
+    df_geo["latitude"],
+    errors="coerce"
+)
+
+df_geo["longitude"] = pd.to_numeric(
+    df_geo["longitude"],
+    errors="coerce"
+)
 
 # =========================================================
 # NUMERISCHE SPALTEN
@@ -208,7 +228,7 @@ radius = st.sidebar.slider(
     "Punktgröße",
     4,
     25,
-    12
+    10
 )
 
 # =========================================================
@@ -229,24 +249,26 @@ with tab1:
 
     st.subheader("Unternehmenskarte Österreich")
 
-    # Nur Zeilen mit gültigen Koordinaten
     map_data = df_geo.dropna(
         subset=["latitude", "longitude"]
     ).copy()
 
-    st.write(f"Anzahl Punkte mit Koordinaten: {len(map_data)}")
+    st.write("Anzahl Punkte:", len(map_data))
 
-    # Debug: erste Koordinaten anzeigen zur Kontrolle
-    with st.expander("Koordinaten-Vorschau (erste 5 Zeilen)"):
-        st.dataframe(map_data[["latitude", "longitude"]].head(5))
+    # DEBUG
+    st.write(map_data[["latitude", "longitude"]].head())
+    st.write(map_data[["latitude", "longitude"]].dtypes)
 
     # =====================================================
-    # OPENSTREETMAP
+    # KARTE
     # =====================================================
 
     m = folium.Map(
+
         location=[47.6, 14.3],
+
         zoom_start=7,
+
         tiles="OpenStreetMap"
     )
 
@@ -278,49 +300,43 @@ with tab1:
             return "#2166ac"
 
     # =====================================================
-    # FIRMENPUNKTE
+    # MARKER
     # =====================================================
-
-    punkte_gesetzt = 0
 
     for _, row in map_data.iterrows():
 
-        try:
-            lat = float(row["latitude"])
-            lon = float(row["longitude"])
-        except (ValueError, TypeError):
+        value = row[variable]
+
+        if pd.isna(value):
             continue
 
-        value = row.get(variable)
-        color = get_color(value)
-
-        popup_wert = round(value, 2) if not pd.isna(value) else "kein Wert"
-
-        popup_html = f"""
+        popup = f"""
         <b>Variable:</b> {variable}<br>
-        <b>Wert:</b> {popup_wert}<br><br>
-        <b>Latitude:</b> {lat}<br>
-        <b>Longitude:</b> {lon}
+        <b>Wert:</b> {round(value,2)}
         """
 
-        try:
-            folium.CircleMarker(
-                location=[lat, lon],
-                radius=radius,
-                color="black",
-                weight=1.5,
-                fill=True,
-                fill_color=color,
-                fill_opacity=1,
-                popup=folium.Popup(popup_html, max_width=300)
-            ).add_to(m)
+        folium.CircleMarker(
 
-            punkte_gesetzt += 1
+            location=[
+                float(row["latitude"]),
+                float(row["longitude"])
+            ],
 
-        except Exception:
-            continue
+            radius=radius,
 
-    st.write(f"Erfolgreich gerenderte Punkte: {punkte_gesetzt}")
+            color="black",
+
+            weight=1.5,
+
+            fill=True,
+
+            fill_color=get_color(value),
+
+            fill_opacity=1,
+
+            popup=popup
+
+        ).add_to(m)
 
     # =====================================================
     # LEGENDE
@@ -341,13 +357,12 @@ with tab1:
 
     <b>{variable}</b><br><br>
 
-    <div style="background:#b2182b;width:20px;height:20px;display:inline-block;margin-right:6px;"></div> ≤ 1<br>
-    <div style="background:#ef8a62;width:20px;height:20px;display:inline-block;margin-right:6px;"></div> ≤ 2<br>
-    <div style="background:#fddbc7;width:20px;height:20px;display:inline-block;margin-right:6px;"></div> ≤ 3<br>
-    <div style="background:#d1e5f0;width:20px;height:20px;display:inline-block;margin-right:6px;"></div> ≤ 4<br>
-    <div style="background:#67a9cf;width:20px;height:20px;display:inline-block;margin-right:6px;"></div> ≤ 5<br>
-    <div style="background:#2166ac;width:20px;height:20px;display:inline-block;margin-right:6px;"></div> 6+<br>
-    <div style="background:gray;width:20px;height:20px;display:inline-block;margin-right:6px;"></div> kein Wert
+    <div style="background:#b2182b;width:20px;height:20px;display:inline-block;"></div> 1<br>
+    <div style="background:#ef8a62;width:20px;height:20px;display:inline-block;"></div> 2<br>
+    <div style="background:#fddbc7;width:20px;height:20px;display:inline-block;"></div> 3<br>
+    <div style="background:#d1e5f0;width:20px;height:20px;display:inline-block;"></div> 4<br>
+    <div style="background:#67a9cf;width:20px;height:20px;display:inline-block;"></div> 5<br>
+    <div style="background:#2166ac;width:20px;height:20px;display:inline-block;"></div> 6+
 
     </div>
     """
@@ -358,9 +373,8 @@ with tab1:
 
     st_folium(
         m,
-        width=None,
-        height=700,
-        returned_objects=[]
+        width=1500,
+        height=900
     )
 
 # =========================================================
@@ -378,8 +392,7 @@ with tab2:
         corr_x = st.selectbox(
             "Variable 1",
             alle_variablen,
-            index=0,
-            key="corr_x"
+            index=0
         )
 
     with col2:
@@ -387,55 +400,51 @@ with tab2:
         corr_y = st.selectbox(
             "Variable 2",
             alle_variablen,
-            index=1,
-            key="corr_y"
+            index=1
         )
 
     corr_data = df_geo[
         [corr_x, corr_y]
     ].dropna()
 
-    if len(corr_data) < 2:
-        st.warning("Nicht genug Datenpunkte für eine Korrelation.")
-    else:
-        corr, pval = pearsonr(
-            corr_data[corr_x],
-            corr_data[corr_y]
-        )
+    corr, pval = pearsonr(
+        corr_data[corr_x],
+        corr_data[corr_y]
+    )
 
-        st.markdown(
-            f"""
-            ## Pearson r = {corr:.3f}
+    st.markdown(
+        f"""
+        ## Pearson r = {corr:.3f}
 
-            ### p-Wert = {pval:.5f}
-            """
-        )
+        ### p-Wert = {pval:.5f}
+        """
+    )
 
-        fig = px.scatter(
+    fig = px.scatter(
 
-            corr_data,
+        corr_data,
 
-            x=corr_x,
+        x=corr_x,
 
-            y=corr_y,
+        y=corr_y,
 
-            trendline="ols",
+        trendline="ols",
 
-            template="plotly_white"
-        )
+        template="plotly_white"
+    )
 
-        fig.update_traces(
-            marker=dict(size=10)
-        )
+    fig.update_traces(
+        marker=dict(size=10)
+    )
 
-        fig.update_layout(
-            height=850
-        )
+    fig.update_layout(
+        height=850
+    )
 
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
 
 # =========================================================
 # DATENTABELLE

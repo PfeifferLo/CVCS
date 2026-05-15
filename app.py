@@ -190,10 +190,10 @@ radius = st.sidebar.slider(
 )
 
 # =========================================================
-# TABS
+# TABS — nur noch 2
 # =========================================================
 
-tab1, tab2, tab3 = st.tabs(["Karte", "Korrelationen", "Datentabelle"])
+tab1, tab2 = st.tabs(["Karte", "Korrelationen"])
 
 # =========================================================
 # TAB 1 — KARTE
@@ -203,12 +203,13 @@ with tab1:
 
     st.subheader("Unternehmenskarte Österreich")
 
-    map_data = df.dropna(subset=["latitude", "longitude", variable]).copy()
+    # Nur Koordinaten filtern — NA bei Variable bleibt drin ✅
+    map_data = df.dropna(subset=["latitude", "longitude"]).copy()
 
     map_data = map_data[
-        (map_data["latitude"]  > 46)  &
+        (map_data["latitude"]  > 46)   &
         (map_data["latitude"]  < 49.5) &
-        (map_data["longitude"] > 9)   &
+        (map_data["longitude"] > 9)    &
         (map_data["longitude"] < 18.5)
     ]
 
@@ -223,13 +224,14 @@ with tab1:
     if variable in vi_variablen:
 
         def get_color(v):
-            if v <= 1: return "#b2182b"
-            elif v <= 2: return "#d6604d"
-            elif v <= 3: return "#f4a582"
-            elif v <= 4: return "#fddbc7"
-            elif v <= 5: return "#92c5de"
-            elif v <= 6: return "#4393c3"
-            else: return "#2166ac"
+            if pd.isna(v):   return "#aaaaaa"   # grau für NA
+            if v <= 1:       return "#b2182b"
+            elif v <= 2:     return "#d6604d"
+            elif v <= 3:     return "#f4a582"
+            elif v <= 4:     return "#fddbc7"
+            elif v <= 5:     return "#92c5de"
+            elif v <= 6:     return "#4393c3"
+            else:            return "#2166ac"
 
         legend_html = f"""
         <div style="position:fixed;bottom:40px;right:40px;z-index:9999;
@@ -242,18 +244,20 @@ with tab1:
         <div style="background:#fddbc7;width:20px;height:20px;display:inline-block;"></div> 4<br>
         <div style="background:#92c5de;width:20px;height:20px;display:inline-block;"></div> 5<br>
         <div style="background:#4393c3;width:20px;height:20px;display:inline-block;"></div> 6<br>
-        <div style="background:#2166ac;width:20px;height:20px;display:inline-block;"></div> 7
+        <div style="background:#2166ac;width:20px;height:20px;display:inline-block;"></div> 7<br>
+        <div style="background:#aaaaaa;width:20px;height:20px;display:inline-block;"></div> k.A.
         </div>
         """
 
     else:
 
         def get_color(v):
-            if v <= 1: return "#d73027"
-            elif v <= 2: return "#fc8d59"
-            elif v <= 3: return "#fee08b"
-            elif v <= 4: return "#91cf60"
-            else: return "#1a9850"
+            if pd.isna(v):   return "#aaaaaa"   # grau für NA
+            if v <= 1:       return "#d73027"
+            elif v <= 2:     return "#fc8d59"
+            elif v <= 3:     return "#fee08b"
+            elif v <= 4:     return "#91cf60"
+            else:            return "#1a9850"
 
         legend_html = f"""
         <div style="position:fixed;bottom:40px;right:40px;z-index:9999;
@@ -264,22 +268,26 @@ with tab1:
         <div style="background:#fc8d59;width:20px;height:20px;display:inline-block;"></div> 2<br>
         <div style="background:#fee08b;width:20px;height:20px;display:inline-block;"></div> 3<br>
         <div style="background:#91cf60;width:20px;height:20px;display:inline-block;"></div> 4<br>
-        <div style="background:#1a9850;width:20px;height:20px;display:inline-block;"></div> 5
+        <div style="background:#1a9850;width:20px;height:20px;display:inline-block;"></div> 5<br>
+        <div style="background:#aaaaaa;width:20px;height:20px;display:inline-block;"></div> k.A.
         </div>
         """
 
     # -----------------------------------------------------
-    # MARKER — mit Zugehörigkeit im Popup
+    # MARKER
     # -----------------------------------------------------
 
     for _, row in map_data.iterrows():
 
         firma = row["Zugehörigkeit"] if "Zugehörigkeit" in row and pd.notna(row["Zugehörigkeit"]) else "k.A."
 
+        # Wert für Popup
+        wert = round(row[variable], 2) if pd.notna(row[variable]) else "k.A."
+
         popup = f"""
         <b>Firma:</b> {firma}<br>
         <b>Variable:</b> {variable}<br>
-        <b>Wert:</b> {round(row[variable], 2)}
+        <b>Wert:</b> {wert}
         """
 
         folium.CircleMarker(
@@ -311,26 +319,4 @@ with tab2:
         corr_x = st.selectbox("Variable X", alle_variablen, key="corr_x")
 
     with col2:
-        corr_y = st.selectbox("Variable Y", alle_variablen, index=1, key="corr_y")
-
-    corr_data = df[[corr_x, corr_y]].dropna()
-
-    if len(corr_data) > 2:
-
-        corr, pval = pearsonr(corr_data[corr_x], corr_data[corr_y])
-
-        st.metric("Pearson r", round(corr, 3))
-        st.metric("p-Wert",    round(pval, 5))
-
-        fig = px.scatter(corr_data, x=corr_x, y=corr_y, trendline="ols")
-        st.plotly_chart(fig, use_container_width=True)
-
-# =========================================================
-# TAB 3 — DATENTABELLE
-# =========================================================
-
-with tab3:
-
-    st.subheader("Datentabelle")
-
-    st.dataframe(df, use_container_width=True, height=900)
+        corr_y = st.selectbox("Variable Y

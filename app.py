@@ -1,8 +1,3 @@
-# =============================================================
-# STREAMLIT DASHBOARD
-# Unternehmensanalyse Oesterreich
-# =============================================================
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -14,11 +9,7 @@ from scipy.stats import pearsonr
 import gspread
 from google.oauth2.service_account import Credentials
 
-st.set_page_config(
-    page_title="Unternehmensanalyse Oesterreich",
-    layout="wide"
-)
-
+st.set_page_config(page_title="Unternehmensanalyse Oesterreich", layout="wide")
 st.title("Unternehmensanalyse Oesterreich")
 
 scope = [
@@ -27,19 +18,13 @@ scope = [
 ]
 
 creds = Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"],
-    scopes=scope
+    st.secrets["gcp_service_account"], scopes=scope
 )
-
 client = gspread.authorize(creds)
 
-sheet = client.open_by_key(
-    "1Z8tsOECgROa69aUUbST0Z5tE0Eh-lZoBv-e0os0DZvY"
-).sheet1
-
+sheet = client.open_by_key("1Z8tsOECgROa69aUUbST0Z5tE0Eh-lZoBv-e0os0DZvY").sheet1
 data = sheet.get_all_records()
 df = pd.DataFrame(data)
-
 df = df.replace("", np.nan)
 
 def fix_coordinates(x):
@@ -56,7 +41,7 @@ def fix_coordinates(x):
         return x / 10000000
     return x
 
-df["latitude"] = df["latitude"].apply(fix_coordinates)
+df["latitude"]  = df["latitude"].apply(fix_coordinates)
 df["longitude"] = df["longitude"].apply(fix_coordinates)
 
 numeric_columns = [
@@ -99,8 +84,8 @@ df["VI_Mittelwert"] = safe_mean([
 df["VI_Closing"] = safe_mean(["Q9 NEU_9","Q9 NEU_10","Q9 NEU_11","Q9 NEU_12"])
 df["VI_Slowing"] = safe_mean(["Q9 NEU_3","Q9 NEU_4","Q9 NEU_5","Q9 NEU_6","Q9 NEU_7"])
 
-df["Oekonomische_Performance"] = safe_mean(["Q161_1","Q161_2","Q161_3","Q161_4","Q161_5","Q161_6"])
-df["Oekologische_Performance"] = safe_mean([
+df["Ökonomische_Performance"] = safe_mean(["Q161_1","Q161_2","Q161_3","Q161_4","Q161_5","Q161_6"])
+df["Ökologische_Performance"] = safe_mean([
     "Q16_1","Q16_2","Q16_3","Q16_4","Q16_5","Q16_6","Q16_7",
     "Q16_8","Q16_9","Q16_10","Q16_11","Q16_12","Q16_13"
 ])
@@ -110,7 +95,7 @@ df["Loop_Closure"]                             = safe_mean(["Q14_1","Q14_2"])
 df["Open_Loops"]                               = safe_mean(["Q14_3","Q14_4","Q14_5"])
 df["Austausch"]                                = safe_mean(["Q15_1","Q15_2"])
 df["Erkenntnisse"]                             = safe_mean(["Q15_3","Q15_4","Q15_5","Q15_6","Q15_7"])
-df["Legitimitaet"]                             = safe_mean(["Q5_3","Q5_16","Q5_18","Q5_19","Q5_20"])
+df["Legitimität"]                             = safe_mean(["Q5_3","Q5_16","Q5_18","Q5_19","Q5_20"])
 df["Externer_Druck"]                           = safe_mean(["Q5_5","Q5_6","Q5_7"])
 df["Lern_und_Kooperationsorientierung"]        = safe_mean(["Q5_12","Q5_13","Q5_14","Q5_15","Q5_17"])
 df["Differenzierungs_Wettbewerbsorientierung"] = safe_mean(["Q5_4","Q5_8","Q5_9","Q5_10"])
@@ -120,31 +105,20 @@ df["Anzahl_Rstrategien"]        = df["Q8_Anzahl_Rstrategien"]
 df["Anzahl_Closing_Strategien"] = safe_sum(["Q8_NEU_9","Q8_NEU_10","Q8_NEU_11","Q8_NEU_12"])
 df["Anzahl_Slowing_Strategien"] = safe_sum(["Q8_NEU_3","Q8_NEU_4","Q8_NEU_5","Q8_NEU_6","Q8_NEU_7","Q8_NEU_8"])
 
-df["Firmengroesse"] = df["Q41"]
+df["Firmengröße"] = df["Q41"]
 df["Firmenalter"]   = df["Q42"]
 
 alle_variablen = [
-    "VI_Mittelwert",
-    "VI_Closing",
-    "VI_Slowing",
-    "Oekonomische_Performance",
-    "Oekologische_Performance",
-    "Produktlebensdauer",
-    "Toxische_Freisetzung",
-    "Loop_Closure",
-    "Open_Loops",
-    "Austausch",
-    "Erkenntnisse",
-    "Legitimitaet",
-    "Externer_Druck",
+    "VI Mittelwert", "VI_Closing", "VI_Slowing",
+    "Ökonomische_Performance", "Ökologische_Performance",
+    "Produktlebensdauer", "Toxische_Freisetzung",
+    "Loop_Closure", "Open_Loops", "Austausch", "Erkenntnisse",
+    "Legitimität", "Externer_Druck",
     "Lern_und_Kooperationsorientierung",
     "Differenzierungs_Wettbewerbsorientierung",
     "Strategische_Integration",
-    "Anzahl_Rstrategien",
-    "Anzahl_Closing_Strategien",
-    "Anzahl_Slowing_Strategien",
-    "Firmengroesse",
-    "Firmenalter"
+    "Anzahl_Rstrategien", "Anzahl_Closing_Strategien", "Anzahl_Slowing_Strategien",
+    "Firmengröße", "Firmenalter"
 ]
 
 vi_variablen = ["VI_Mittelwert", "VI_Closing", "VI_Slowing"]
@@ -158,18 +132,14 @@ variable = st.sidebar.selectbox(
 )
 
 radius = st.sidebar.slider(
-    "Punktgroesse",
-    min_value=3,
-    max_value=20,
-    value=8,
-    key="radius_slider"
+    "Punktgroesse", min_value=3, max_value=20, value=8, key="radius_slider"
 )
 
 tab1, tab2 = st.tabs(["Karte", "Korrelationen"])
 
 with tab1:
 
-    st.subheader("Unternehmenskarte Oesterreich")
+    st.subheader("Unternehmenskarte Österreich")
 
     map_data = df.dropna(subset=["latitude", "longitude"]).copy()
 
@@ -235,25 +205,31 @@ with tab1:
         + "</div>"
     )
 
-    firmen_spalte = "Zugehoerigkeit"
+    # Passe diesen Namen auf deinen exakten Spaltennamen an
+    firmen_spalte = "Zugehörigkeit"
 
     for _, row in map_data.iterrows():
 
+        # Firmenname — immer anzeigen, auch bei NA
         if firmen_spalte in df.columns and pd.notna(row.get(firmen_spalte)):
             firma = str(row[firmen_spalte])
         else:
             firma = "k.A."
 
+        # Variablenwert
         if pd.notna(row[variable]):
             wert = str(round(float(row[variable]), 2))
         else:
-            wert = "k.A."
+            wert = "kein Wert"
 
         popup_html = (
             "<b>Firma:</b> " + firma + "<br>"
             + "<b>Variable:</b> " + str(variable) + "<br>"
             + "<b>Wert:</b> " + wert
         )
+
+        # Tooltip zeigt Firmenname beim Hovern — auch bei grauen NA-Punkten
+        tooltip_html = firma
 
         folium.CircleMarker(
             location=[row["latitude"], row["longitude"]],
@@ -263,7 +239,8 @@ with tab1:
             fill=True,
             fill_color=get_color(row[variable]),
             fill_opacity=0.9,
-            popup=folium.Popup(popup_html, max_width=300)
+            popup=folium.Popup(popup_html, max_width=300),
+            tooltip=folium.Tooltip(tooltip_html)
         ).add_to(m)
 
     m.get_root().html.add_child(folium.Element(legend_html))

@@ -650,4 +650,4 @@ with tab2:
         corr_x = st.selectbox("Variable X", alle_variablen, key="corr_x")
 
     with col2:
-        corr_y = st.selectbox("Variable Y
+        corr_y = st.selectbox("Variable Y")

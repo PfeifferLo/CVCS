@@ -22,11 +22,11 @@ from google.oauth2.service_account import Credentials
 # =========================================================
 
 st.set_page_config(
-    page_title="Unternehmensanalyse Österreich",
+    page_title="CVCS Dashboard",
     layout="wide"
 )
 
-st.title("Unternehmensanalyse Österreich")
+st.title("CVCS Dashboard")
 
 # =========================================================
 # GOOGLE SHEETS VERBINDUNG

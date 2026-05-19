@@ -65,6 +65,10 @@ df = df.replace("", np.nan)
 # KOORDINATEN FIX
 # =========================================================
 
+AUST_LAT_MIN, AUST_LAT_MAX = 46.0, 49.5
+AUST_LON_MIN, AUST_LON_MAX = 9.0, 18.5
+
+
 def fix_coordinates(x):
     if pd.isna(x):
         return np.nan
@@ -79,8 +83,18 @@ def fix_coordinates(x):
         return x / 10000000
     return x
 
+
 df["latitude"]  = df["latitude"].apply(fix_coordinates)
 df["longitude"] = df["longitude"].apply(fix_coordinates)
+
+df["valid_coords"] = df["latitude"].notna() & df["longitude"].notna()
+df["in_austria"] = (
+    df["valid_coords"] &
+    (df["latitude"] > AUST_LAT_MIN) &
+    (df["latitude"] < AUST_LAT_MAX) &
+    (df["longitude"] > AUST_LON_MIN) &
+    (df["longitude"] < AUST_LON_MAX)
+)
 
 # =========================================================
 # NUMERISCHE SPALTEN
@@ -143,11 +157,12 @@ df["VI_Slowing"] = safe_mean(["Q9 NEU_3","Q9 NEU_4","Q9 NEU_5","Q9 NEU_6","Q9 NE
 # --- Q12 ---
 df["Langlebigkeit_Repairability"]   = safe_mean(["Q12_1","Q12_2","Q12_3","Q12_4","Q12_5"])
 df["Design_for_Recycling"]          = safe_mean(["Q12_6","Q12_7"])
+df["Gesundheit_Materialien"]        = safe_mean(["Q12_8"])
 df["Design_Biologischer_Kreislauf"] = safe_mean(["Q12_9","Q12_10","Q12_11","Q12_12"])
 
 # --- Q13 ---
-df["Nutzungsorientierte_PSS"] = safe_mean(["Q13_4","Q13_5","Q13_6","Q13_7"])
-df["Integrierte_PSS"]    = safe_mean(["Q13_1","Q13_2","Q13_3"])
+df["Nutzungsorientierte_Geschäftsmodelle"] = safe_mean(["Q13_4","Q13_5","Q13_6","Q13_7"])
+df["Kokreative_Dienstleistungsmodelle"]    = safe_mean(["Q13_1","Q13_2","Q13_3"])
 
 # --- Q8 ---
 df["Anzahl_Rstrategien"]        = df["Q8_Anzahl_Rstrategien"] if "Q8_Anzahl_Rstrategien" in df.columns else np.nan
@@ -191,11 +206,14 @@ df["Firmenalter"] = df["Q42"] if "Q42" in df.columns else np.nan
 # =========================================================
 
 alle_variablen = [
-    "VI_Mittelwert", "VI_Closing", "VI_Slowing","Strategische_Integration","Legitimität", "Externer_Druck", "Lern_und_Kooperationsorientierung", "Differenzierungs_Wettbewerbsorientierung",
+    "VI_Mittelwert", "VI_Closing", "VI_Slowing",
     "Langlebigkeit_Repairability", "Design_for_Recycling",
-    "Design_Biologischer_Kreislauf",
-    "Nutzungsorientierte_PSS", "Integrierte_PSS",
+    "Gesundheit_Materialien", "Design_Biologischer_Kreislauf",
+    "Nutzungsorientierte_Geschäftsmodelle", "Kokreative_Dienstleistungsmodelle",
     "Anzahl_Rstrategien", "Anzahl_Closing_Strategien", "Anzahl_Slowing_Strategien",
+    "Strategische_Integration",
+    "Legitimität", "Externer_Druck",
+    "Lern_und_Kooperationsorientierung", "Differenzierungs_Wettbewerbsorientierung",
     "Austausch", "Erkenntnisse",
     "Loop_Closure", "Open_Loops",
     "Produktlebensdauer", "Toxische_Freisetzung", "Ökologische_Performance",
@@ -243,26 +261,55 @@ with tab1:
 
     st.subheader("Unternehmenskarte Österreich")
 
-    # Alle Firmen mit gültigen Koordinaten in Österreich
-    coords_mask = (
-        df["latitude"].notna() &
-        df["longitude"].notna() &
-        (df["latitude"]  > 46)   &
-        (df["latitude"]  < 49.5) &
-        (df["longitude"] > 9)    &
-        (df["longitude"] < 18.5)
-    )
-    df_map = df[coords_mask].copy()
+    total_firms = len(df)
+    coords_valid = df["valid_coords"].sum()
+    coords_austria = df["in_austria"].sum()
+    coords_outside = coords_valid - coords_austria
+    coords_missing = total_firms - coords_valid
 
-    # Aufteilen: mit Wert vs. NA für gewählte Variable
+    st.markdown(
+        f"**Gesamtunternehmen:** {total_firms}  
+"
+        f"**Mit Koordinaten:** {coords_valid}  
+"
+        f"**Innerhalb Österreich:** {coords_austria}  
+"
+        f"**Außerhalb Österreich:** {coords_outside}  
+"
+        f"**Ohne Koordinaten:** {coords_missing}"
+    )
+
+    coords_filter = st.radio(
+        "Kartenausschnitt",
+        ("Nur Österreich", "Alle Koordinaten"),
+        index=0,
+        horizontal=True,
+        key="map_scope"
+    )
+
+    if coords_filter == "Nur Österreich":
+        df_map = df[df["in_austria"]].copy()
+    else:
+        df_map = df[df["valid_coords"]].copy()
+
+    st.info("Wähle 'Alle Koordinaten', um auch Punkte außerhalb der Österreich-Box anzuzeigen.")
+
     map_data_colored = df_map[df_map[variable].notna()].copy()
     map_data_na      = df_map[df_map[variable].isna()].copy()
 
-    col_info1, col_info2 = st.columns(2)
-    col_info1.metric("Firmen mit Wert",       len(map_data_colored))
-    col_info2.metric("Firmen ohne Wert (NA)", len(map_data_na))
+    col_info1, col_info2, col_info3 = st.columns(3)
+    col_info1.metric("Punkte mit Wert",       len(map_data_colored))
+    col_info2.metric("Punkte ohne Wert (NA)", len(map_data_na))
+    col_info3.metric("Punkte insgesamt",       len(df_map))
 
     m = folium.Map(location=[47.6, 14.5], zoom_start=7, tiles="OpenStreetMap")
+
+    if coords_filter == "Alle Koordinaten" and len(df_map) > 0:
+        bounds = [
+            [df_map["latitude"].min(), df_map["longitude"].min()],
+            [df_map["latitude"].max(), df_map["longitude"].max()]
+        ]
+        m.fit_bounds(bounds)
 
     # --------------------------------------------------
     # FARBEN + LEGENDE
@@ -324,8 +371,10 @@ with tab1:
 
     for _, row in map_data_colored.iterrows():
         firma = row["Zugehörigkeit"] if "Zugehörigkeit" in row and pd.notna(row["Zugehörigkeit"]) else "k.A."
+        region = "Österreich" if row["in_austria"] else "Außerhalb Österreich"
         popup = f"""
         <b>Firma:</b> {firma}<br>
+        <b>Region:</b> {region}<br>
         <b>Variable:</b> {variable}<br>
         <b>Wert:</b> {round(row[variable], 2)}
         """
@@ -345,8 +394,10 @@ with tab1:
 
     for _, row in map_data_na.iterrows():
         firma = row["Zugehörigkeit"] if "Zugehörigkeit" in row and pd.notna(row["Zugehörigkeit"]) else "k.A."
+        region = "Österreich" if row["in_austria"] else "Außerhalb Österreich"
         popup = f"""
         <b>Firma:</b> {firma}<br>
+        <b>Region:</b> {region}<br>
         <b>Variable:</b> {variable}<br>
         <b>Wert:</b> kein Wert (NA)
         """

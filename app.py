@@ -191,14 +191,11 @@ df["Firmenalter"] = df["Q42"] if "Q42" in df.columns else np.nan
 # =========================================================
 
 alle_variablen = [
-    "VI_Mittelwert", "VI_Closing", "VI_Slowing","Legitimität", "Externer_Druck", "Lern_und_Kooperationsorientierung", "Differenzierungs_Wettbewerbsorientierung",
+    "VI_Mittelwert", "VI_Closing", "VI_Slowing","Strategische_Integration","Legitimität", "Externer_Druck", "Lern_und_Kooperationsorientierung", "Differenzierungs_Wettbewerbsorientierung",
     "Langlebigkeit_Repairability", "Design_for_Recycling",
     "Design_Biologischer_Kreislauf",
     "Nutzungsorientierte_PSS", "Integrierte_PSS",
     "Anzahl_Rstrategien", "Anzahl_Closing_Strategien", "Anzahl_Slowing_Strategien",
-    "Strategische_Integration",
-    
-   
     "Austausch", "Erkenntnisse",
     "Loop_Closure", "Open_Loops",
     "Produktlebensdauer", "Toxische_Freisetzung", "Ökologische_Performance",

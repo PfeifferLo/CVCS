@@ -390,10 +390,7 @@ with tab2:
             "count": "N",
             "mean":  "Mittelwert",
             "std":   "Std.-Abw.",
-            "min":   "Min",
-            "25%":   "Q25",
             "50%":   "Median",
-            "75%":   "Q75",
             "max":   "Max"
         })
 

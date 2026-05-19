@@ -385,6 +385,7 @@ with tab2:
         desc_df["missing_%"] = (df[desc_vars].isna().mean() * 100).round(1).values
         desc_df["Schiefe"] = df[desc_vars].skew()
         desc_df["Wölbung"] = df[desc_vars].kurtosis()
+        desc_df = desc_df.drop(columns=["min", "25%", "75%"])
 
         desc_df = desc_df.rename(columns={
             "count": "N",

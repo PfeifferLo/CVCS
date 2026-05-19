@@ -101,7 +101,14 @@ numeric_columns = [
     "Q8_Anzahl_Rstrategien",
     "Q8_NEU_3","Q8_NEU_4","Q8_NEU_5","Q8_NEU_6","Q8_NEU_7",
     "Q8_NEU_8","Q8_NEU_9","Q8_NEU_10","Q8_NEU_11","Q8_NEU_12",
-    "Q41","Q42"
+    "Q41","Q42",
+    # NEU: Q12 Items
+    "Q12_1","Q12_2","Q12_3","Q12_4","Q12_5",
+    "Q12_6","Q12_7","Q12_8",
+    "Q12_9","Q12_10","Q12_11","Q12_12",
+    # NEU: Q13 Items
+    "Q13_1","Q13_2","Q13_3",
+    "Q13_4","Q13_5","Q13_6","Q13_7"
 ]
 
 for col in numeric_columns:
@@ -153,6 +160,30 @@ df["Anzahl_Slowing_Strategien"]  = safe_sum(["Q8_NEU_3","Q8_NEU_4","Q8_NEU_5","Q
 df["Firmengröße"] = df["Q41"]
 df["Firmenalter"] = df["Q42"]
 
+# -------------------------
+# NEU: Q12 Konstrukte
+# -------------------------
+
+df["Langlebigkeit_Repairability"] = safe_mean([
+    "Q12_1","Q12_2","Q12_3","Q12_4","Q12_5"
+])
+df["Design_for_Recycling"]        = safe_mean(["Q12_6","Q12_7"])
+df["Gesundheit_Materialien"]      = safe_mean(["Q12_8"])
+df["Design_Biologischer_Kreislauf"] = safe_mean([
+    "Q12_9","Q12_10","Q12_11","Q12_12"
+])
+
+# -------------------------
+# NEU: Q13 Konstrukte
+# -------------------------
+
+df["Nutzungsorientierte_Geschäftsmodelle"]   = safe_mean([
+    "Q13_4","Q13_5","Q13_6","Q13_7"
+])
+df["Kokreative_Dienstleistungsmodelle"]      = safe_mean([
+    "Q13_1","Q13_2","Q13_3"
+])
+
 # =========================================================
 # VARIABLEN
 # =========================================================
@@ -167,7 +198,14 @@ alle_variablen = [
     "Differenzierungs_Wettbewerbsorientierung",
     "Strategische_Integration",
     "Anzahl_Rstrategien","Anzahl_Closing_Strategien","Anzahl_Slowing_Strategien",
-    "Firmengröße","Firmenalter"
+    "Firmengröße","Firmenalter",
+    # NEU
+    "Langlebigkeit_Repairability",
+    "Design_for_Recycling",
+    "Gesundheit_Materialien",
+    "Design_Biologischer_Kreislauf",
+    "Nutzungsorientierte_Geschäftsmodelle",
+    "Kokreative_Dienstleistungsmodelle"
 ]
 
 vi_variablen = ["VI_Mittelwert","VI_Closing","VI_Slowing"]
@@ -334,4 +372,3 @@ with tab3:
     st.subheader("Datentabelle")
 
     st.dataframe(df, use_container_width=True, height=900)
-

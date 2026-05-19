@@ -143,12 +143,11 @@ df["VI_Slowing"] = safe_mean(["Q9 NEU_3","Q9 NEU_4","Q9 NEU_5","Q9 NEU_6","Q9 NE
 # --- Q12 ---
 df["Langlebigkeit_Repairability"]   = safe_mean(["Q12_1","Q12_2","Q12_3","Q12_4","Q12_5"])
 df["Design_for_Recycling"]          = safe_mean(["Q12_6","Q12_7"])
-df["Gesundheit_Materialien"]        = safe_mean(["Q12_8"])
 df["Design_Biologischer_Kreislauf"] = safe_mean(["Q12_9","Q12_10","Q12_11","Q12_12"])
 
 # --- Q13 ---
-df["Nutzungsorientierte_Geschäftsmodelle"] = safe_mean(["Q13_4","Q13_5","Q13_6","Q13_7"])
-df["Kokreative_Dienstleistungsmodelle"]    = safe_mean(["Q13_1","Q13_2","Q13_3"])
+df["Nutzungsorientierte_PSS"] = safe_mean(["Q13_4","Q13_5","Q13_6","Q13_7"])
+df["Integrierte_PSS"]    = safe_mean(["Q13_1","Q13_2","Q13_3"])
 
 # --- Q8 ---
 df["Anzahl_Rstrategien"]        = df["Q8_Anzahl_Rstrategien"] if "Q8_Anzahl_Rstrategien" in df.columns else np.nan
@@ -194,8 +193,8 @@ df["Firmenalter"] = df["Q42"] if "Q42" in df.columns else np.nan
 alle_variablen = [
     "VI_Mittelwert", "VI_Closing", "VI_Slowing",
     "Langlebigkeit_Repairability", "Design_for_Recycling",
-    "Gesundheit_Materialien", "Design_Biologischer_Kreislauf",
-    "Nutzungsorientierte_Geschäftsmodelle", "Kokreative_Dienstleistungsmodelle",
+    "Design_Biologischer_Kreislauf",
+    "Nutzungsorientierte_PSS", "Integrierte_PSS",
     "Anzahl_Rstrategien", "Anzahl_Closing_Strategien", "Anzahl_Slowing_Strategien",
     "Strategische_Integration",
     "Legitimität", "Externer_Druck",

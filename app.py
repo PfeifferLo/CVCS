@@ -259,7 +259,7 @@ with tab1:
     map_data_na      = df_map[df_map[variable].isna()].copy()
 
     col_info1, col_info2 = st.columns(2)
-    col_info1.metric("Firmen mit Wert",       len(map_data_colored))
+    col_info1.metric("Firmen mit Wert (Kleineres n, da die Adresscodierung nicht bei allen Firmen funktionierte)",       len(map_data_colored))
     col_info2.metric("Firmen ohne Wert (NA)", len(map_data_na))
 
     m = folium.Map(location=[47.6, 14.5], zoom_start=7, tiles="OpenStreetMap")

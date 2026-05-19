@@ -151,8 +151,8 @@ df["Integrierte_PSS"]    = safe_mean(["Q13_1","Q13_2","Q13_3"])
 
 # --- Q8 ---
 df["Anzahl_Rstrategien"] = df["Q8 Anzahl R-Strategien (Fr. 8)"]
-df["Anzahl_Closing_Strategien"] = safe_sum(["Q8_9","Q8_10","Q8_11","Q8_12"])
-df["Anzahl_Slowing_Strategien"] = safe_sum(["Q8_3","Q8_4","Q8_5","Q8_6","Q8_7","Q8_8"])
+df["Anzahl_Closing_Strategien"] = df["Anzahl_Closing_Strategien"]
+df["Anzahl_Slowing_Strategien"] = df["Anzahl_Slowing_Strategien"]
 
 # --- Q6 ---
 df["Strategische_Integration"] = safe_mean(["Q6_1","Q6_2","Q6_3","Q6_4","Q6_5","Q6_6","Q6_7","Q6_8"])

@@ -8,7 +8,6 @@ import pandas as pd
 import numpy as np
 import folium
 import plotly.express as px
-import plotly.figure_factory as ff
 import plotly.graph_objects as go
 
 from streamlit_folium import st_folium
@@ -122,10 +121,14 @@ for col in numeric_columns:
 
 def safe_mean(columns):
     cols = [c for c in columns if c in df.columns]
+    if not cols:
+        return pd.Series(np.nan, index=df.index)
     return df[cols].mean(axis=1, skipna=True)
 
 def safe_sum(columns):
     cols = [c for c in columns if c in df.columns]
+    if not cols:
+        return pd.Series(np.nan, index=df.index)
     return df[cols].sum(axis=1, skipna=True)
 
 # --- VI ---
@@ -137,18 +140,18 @@ df["VI_Mittelwert"] = safe_mean([
 df["VI_Closing"] = safe_mean(["Q9 NEU_9","Q9 NEU_10","Q9 NEU_11","Q9 NEU_12"])
 df["VI_Slowing"] = safe_mean(["Q9 NEU_3","Q9 NEU_4","Q9 NEU_5","Q9 NEU_6","Q9 NEU_7"])
 
-# --- Q12 Konstrukte ---
+# --- Q12 ---
 df["Langlebigkeit_Repairability"]   = safe_mean(["Q12_1","Q12_2","Q12_3","Q12_4","Q12_5"])
 df["Design_for_Recycling"]          = safe_mean(["Q12_6","Q12_7"])
 df["Gesundheit_Materialien"]        = safe_mean(["Q12_8"])
 df["Design_Biologischer_Kreislauf"] = safe_mean(["Q12_9","Q12_10","Q12_11","Q12_12"])
 
-# --- Q13 Konstrukte ---
+# --- Q13 ---
 df["Nutzungsorientierte_Geschäftsmodelle"] = safe_mean(["Q13_4","Q13_5","Q13_6","Q13_7"])
 df["Kokreative_Dienstleistungsmodelle"]    = safe_mean(["Q13_1","Q13_2","Q13_3"])
 
-# --- Q8 Strategien ---
-df["Anzahl_Rstrategien"]        = df["Q8_Anzahl_Rstrategien"]
+# --- Q8 ---
+df["Anzahl_Rstrategien"]        = df["Q8_Anzahl_Rstrategien"] if "Q8_Anzahl_Rstrategien" in df.columns else np.nan
 df["Anzahl_Closing_Strategien"] = safe_sum(["Q8_NEU_9","Q8_NEU_10","Q8_NEU_11","Q8_NEU_12"])
 df["Anzahl_Slowing_Strategien"] = safe_sum(["Q8_NEU_3","Q8_NEU_4","Q8_NEU_5","Q8_NEU_6","Q8_NEU_7","Q8_NEU_8"])
 
@@ -162,17 +165,17 @@ df["Lern_und_Kooperationsorientierung"]        = safe_mean(["Q5_12","Q5_13","Q5_
 df["Differenzierungs_Wettbewerbsorientierung"] = safe_mean(["Q5_4","Q5_8","Q5_9","Q5_10"])
 
 # --- Q15 ---
-df["Austausch"]     = safe_mean(["Q15_1","Q15_2"])
-df["Erkenntnisse"]  = safe_mean(["Q15_3","Q15_4","Q15_5","Q15_6","Q15_7"])
+df["Austausch"]    = safe_mean(["Q15_1","Q15_2"])
+df["Erkenntnisse"] = safe_mean(["Q15_3","Q15_4","Q15_5","Q15_6","Q15_7"])
 
 # --- Q14 ---
 df["Loop_Closure"] = safe_mean(["Q14_1","Q14_2"])
 df["Open_Loops"]   = safe_mean(["Q14_3","Q14_4","Q14_5"])
 
 # --- Q16 ---
-df["Produktlebensdauer"]       = safe_mean(["Q16_3","Q16_4"])
-df["Toxische_Freisetzung"]     = safe_mean(["Q16_6","Q16_7"])
-df["Ökologische_Performance"]  = safe_mean([
+df["Produktlebensdauer"]      = safe_mean(["Q16_3","Q16_4"])
+df["Toxische_Freisetzung"]    = safe_mean(["Q16_6","Q16_7"])
+df["Ökologische_Performance"] = safe_mean([
     "Q16_1","Q16_2","Q16_3","Q16_4","Q16_5","Q16_6","Q16_7",
     "Q16_8","Q16_9","Q16_10","Q16_11","Q16_12","Q16_13"
 ])
@@ -181,55 +184,30 @@ df["Ökologische_Performance"]  = safe_mean([
 df["Ökonomische_Performance"] = safe_mean(["Q161_1","Q161_2","Q161_3","Q161_4","Q161_5","Q161_6"])
 
 # --- Firma ---
-df["Firmengröße"] = df["Q41"]
-df["Firmenalter"] = df["Q42"]
+df["Firmengröße"] = df["Q41"] if "Q41" in df.columns else np.nan
+df["Firmenalter"] = df["Q42"] if "Q42" in df.columns else np.nan
 
 # =========================================================
 # VARIABLEN — geordnet
 # =========================================================
 
 alle_variablen = [
-    # VI (Q9)
-    "VI_Mittelwert",
-    "VI_Closing",
-    "VI_Slowing",
-    # Q12
-    "Langlebigkeit_Repairability",
-    "Design_for_Recycling",
-    "Gesundheit_Materialien",
-    "Design_Biologischer_Kreislauf",
-    # Q13
-    "Nutzungsorientierte_Geschäftsmodelle",
-    "Kokreative_Dienstleistungsmodelle",
-    # Q8
-    "Anzahl_Rstrategien",
-    "Anzahl_Closing_Strategien",
-    "Anzahl_Slowing_Strategien",
-    # Q6
+    "VI_Mittelwert", "VI_Closing", "VI_Slowing",
+    "Langlebigkeit_Repairability", "Design_for_Recycling",
+    "Gesundheit_Materialien", "Design_Biologischer_Kreislauf",
+    "Nutzungsorientierte_Geschäftsmodelle", "Kokreative_Dienstleistungsmodelle",
+    "Anzahl_Rstrategien", "Anzahl_Closing_Strategien", "Anzahl_Slowing_Strategien",
     "Strategische_Integration",
-    # Q5
-    "Legitimität",
-    "Externer_Druck",
-    "Lern_und_Kooperationsorientierung",
-    "Differenzierungs_Wettbewerbsorientierung",
-    # Q15
-    "Austausch",
-    "Erkenntnisse",
-    # Q14
-    "Loop_Closure",
-    "Open_Loops",
-    # Q16
-    "Produktlebensdauer",
-    "Toxische_Freisetzung",
-    "Ökologische_Performance",
-    # Q161
+    "Legitimität", "Externer_Druck",
+    "Lern_und_Kooperationsorientierung", "Differenzierungs_Wettbewerbsorientierung",
+    "Austausch", "Erkenntnisse",
+    "Loop_Closure", "Open_Loops",
+    "Produktlebensdauer", "Toxische_Freisetzung", "Ökologische_Performance",
     "Ökonomische_Performance",
-    # Firma
-    "Firmengröße",
-    "Firmenalter"
+    "Firmengröße", "Firmenalter"
 ]
 
-vi_variablen = ["VI_Mittelwert","VI_Closing","VI_Slowing"]
+vi_variablen = ["VI_Mittelwert", "VI_Closing", "VI_Slowing"]
 
 # =========================================================
 # SIDEBAR
@@ -269,431 +247,27 @@ with tab1:
 
     st.subheader("Unternehmenskarte Österreich")
 
-    # Firmen MIT Koordinaten UND Variable
-    map_data_colored = df.dropna(subset=["latitude", "longitude", variable]).copy()
-    map_data_colored = map_data_colored[
-        (map_data_colored["latitude"]  > 46)  &
-        (map_data_colored["latitude"]  < 49.5) &
-        (map_data_colored["longitude"] > 9)   &
-        (map_data_colored["longitude"] < 18.5)
-    ]
+    # Alle Firmen mit gültigen Koordinaten in Österreich
+    coords_mask = (
+        df["latitude"].notna() &
+        df["longitude"].notna() &
+        (df["latitude"]  > 46)   &
+        (df["latitude"]  < 49.5) &
+        (df["longitude"] > 9)    &
+        (df["longitude"] < 18.5)
+    )
+    df_map = df[coords_mask].copy()
 
-    # Firmen MIT Koordinaten aber OHNE Variable (NA)
-    map_data_na = df[df[variable].isna()].dropna(subset=["latitude", "longitude"]).copy()
-    map_data_na = map_data_na[
-        (map_data_na["latitude"]  > 46)  &
-        (map_data_na["latitude"]  < 49.5) &
-        (map_data_na["longitude"] > 9)   &
-        (map_data_na["longitude"] < 18.5)
-    ]
+    # Aufteilen: mit Wert vs. NA für gewählte Variable
+    map_data_colored = df_map[df_map[variable].notna()].copy()
+    map_data_na      = df_map[df_map[variable].isna()].copy()
 
     col_info1, col_info2 = st.columns(2)
-    col_info1.metric("Firmen mit Wert", len(map_data_colored))
+    col_info1.metric("Firmen mit Wert",       len(map_data_colored))
     col_info2.metric("Firmen ohne Wert (NA)", len(map_data_na))
 
     m = folium.Map(location=[47.6, 14.5], zoom_start=7, tiles="OpenStreetMap")
 
     # --------------------------------------------------
     # FARBEN + LEGENDE
-    # --------------------------------------------------
-
-    if variable in vi_variablen:
-
-        def get_color(v):
-            if v <= 1: return "#b2182b"
-            elif v <= 2: return "#d6604d"
-            elif v <= 3: return "#f4a582"
-            elif v <= 4: return "#fddbc7"
-            elif v <= 5: return "#92c5de"
-            elif v <= 6: return "#4393c3"
-            else: return "#2166ac"
-
-        legend_html = f"""
-        <div style="position:fixed;bottom:40px;right:40px;z-index:9999;
-        background-color:white;padding:15px;border:2px solid grey;
-        border-radius:10px;font-size:14px;">
-        <b>{variable}</b><br><br>
-        <div style="background:#b2182b;width:20px;height:20px;display:inline-block;"></div> 1<br>
-        <div style="background:#d6604d;width:20px;height:20px;display:inline-block;"></div> 2<br>
-        <div style="background:#f4a582;width:20px;height:20px;display:inline-block;"></div> 3<br>
-        <div style="background:#fddbc7;width:20px;height:20px;display:inline-block;"></div> 4<br>
-        <div style="background:#92c5de;width:20px;height:20px;display:inline-block;"></div> 5<br>
-        <div style="background:#4393c3;width:20px;height:20px;display:inline-block;"></div> 6<br>
-        <div style="background:#2166ac;width:20px;height:20px;display:inline-block;"></div> 7<br><br>
-        <div style="background:#aaaaaa;width:20px;height:20px;display:inline-block;"></div> kein Wert (NA)
-        </div>
-        """
-
-    else:
-
-        def get_color(v):
-            if v <= 1: return "#d73027"
-            elif v <= 2: return "#fc8d59"
-            elif v <= 3: return "#fee08b"
-            elif v <= 4: return "#91cf60"
-            else: return "#1a9850"
-
-        legend_html = f"""
-        <div style="position:fixed;bottom:40px;right:40px;z-index:9999;
-        background-color:white;padding:15px;border:2px solid grey;
-        border-radius:10px;font-size:14px;">
-        <b>{variable}</b><br><br>
-        <div style="background:#d73027;width:20px;height:20px;display:inline-block;"></div> 1<br>
-        <div style="background:#fc8d59;width:20px;height:20px;display:inline-block;"></div> 2<br>
-        <div style="background:#fee08b;width:20px;height:20px;display:inline-block;"></div> 3<br>
-        <div style="background:#91cf60;width:20px;height:20px;display:inline-block;"></div> 4<br>
-        <div style="background:#1a9850;width:20px;height:20px;display:inline-block;"></div> 5<br><br>
-        <div style="background:#aaaaaa;width:20px;height:20px;display:inline-block;"></div> kein Wert (NA)
-        </div>
-        """
-
-    # --------------------------------------------------
-    # MARKER — farbig (mit Wert)
-    # --------------------------------------------------
-
-    for _, row in map_data_colored.iterrows():
-
-        firma = row["Zugehörigkeit"] if "Zugehörigkeit" in row and pd.notna(row["Zugehörigkeit"]) else "k.A."
-
-        popup = f"""
-        <b>Firma:</b> {firma}<br>
-        <b>Variable:</b> {variable}<br>
-        <b>Wert:</b> {round(row[variable], 2)}
-        """
-
-        folium.CircleMarker(
-            location=[row["latitude"], row["longitude"]],
-            radius=radius,
-            color="black",
-            weight=1,
-            fill=True,
-            fill_color=get_color(row[variable]),
-            fill_opacity=0.9,
-            popup=folium.Popup(popup, max_width=250)
-        ).add_to(m)
-
-    # --------------------------------------------------
-    # MARKER — grau (NA)
-    # --------------------------------------------------
-
-    for _, row in map_data_na.iterrows():
-
-        firma = row["Zugehörigkeit"] if "Zugehörigkeit" in row and pd.notna(row["Zugehörigkeit"]) else "k.A."
-
-        popup = f"""
-        <b>Firma:</b> {firma}<br>
-        <b>Variable:</b> {variable}<br>
-        <b>Wert:</b> kein Wert (NA)
-        """
-
-        folium.CircleMarker(
-            location=[row["latitude"], row["longitude"]],
-            radius=radius,
-            color="black",
-            weight=1,
-            fill=True,
-            fill_color="#aaaaaa",
-            fill_opacity=0.7,
-            popup=folium.Popup(popup, max_width=250)
-        ).add_to(m)
-
-    m.get_root().html.add_child(folium.Element(legend_html))
-
-    st_folium(m, width=1400, height=850)
-
-# =========================================================
-# TAB 2 — DESKRIPTIVE STATISTIK
-# =========================================================
-
-with tab2:
-
-    st.subheader("Deskriptive Statistik")
-
-    desc_vars = st.multiselect(
-        "Variablen auswählen",
-        alle_variablen,
-        default=alle_variablen[:6],
-        key="desc_vars"
-    )
-
-    if desc_vars:
-
-        desc_df = df[desc_vars].describe().T
-        desc_df["missing"] = df[desc_vars].isna().sum().values
-        desc_df["missing_%"] = (df[desc_vars].isna().mean() * 100).round(1).values
-
-        desc_df = desc_df.rename(columns={
-            "count": "N",
-            "mean":  "Mittelwert",
-            "std":   "Std.-Abw.",
-            "min":   "Min",
-            "25%":   "Q25",
-            "50%":   "Median",
-            "75%":   "Q75",
-            "max":   "Max"
-        })
-
-        st.dataframe(desc_df.round(3), use_container_width=True)
-
-        st.markdown("---")
-        st.subheader("Histogramm / Verteilung")
-
-        hist_var = st.selectbox(
-            "Variable für Histogramm",
-            desc_vars,
-            key="hist_var"
-        )
-
-        hist_data = df[hist_var].dropna()
-
-        fig_hist = px.histogram(
-            hist_data,
-            x=hist_var,
-            nbins=20,
-            marginal="box",
-            title=f"Verteilung: {hist_var}",
-            color_discrete_sequence=["#4393c3"]
-        )
-        st.plotly_chart(fig_hist, use_container_width=True)
-
-# =========================================================
-# TAB 3 — KORRELATIONEN & HEATMAP
-# =========================================================
-
-with tab3:
-
-    st.subheader("Pearson-Korrelation (Paarweise)")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        corr_x = st.selectbox("Variable X", alle_variablen, key="corr_x")
-
-    with col2:
-        corr_y = st.selectbox("Variable Y", alle_variablen, index=1, key="corr_y")
-
-    corr_data = df[[corr_x, corr_y]].dropna()
-
-    if len(corr_data) > 2:
-
-        corr, pval = pearsonr(corr_data[corr_x], corr_data[corr_y])
-
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Pearson r",  round(corr, 3))
-        m2.metric("p-Wert",     round(pval, 5))
-        m3.metric("N",          len(corr_data))
-
-        fig_scatter = px.scatter(
-            corr_data, x=corr_x, y=corr_y,
-            trendline="ols",
-            title=f"Streudiagramm: {corr_x} vs. {corr_y}"
-        )
-        st.plotly_chart(fig_scatter, use_container_width=True)
-
-    st.markdown("---")
-    st.subheader("Korrelationsmatrix (Heatmap)")
-
-    heatmap_vars = st.multiselect(
-        "Variablen für Heatmap auswählen",
-        alle_variablen,
-        default=alle_variablen[:8],
-        key="heatmap_vars"
-    )
-
-    if len(heatmap_vars) >= 2:
-
-        corr_matrix = df[heatmap_vars].corr(method="pearson")
-
-        fig_heat = px.imshow(
-            corr_matrix,
-            text_auto=".2f",
-            color_continuous_scale="RdBu_r",
-            zmin=-1, zmax=1,
-            title="Pearson-Korrelationsmatrix",
-            aspect="auto"
-        )
-        fig_heat.update_layout(height=600)
-        st.plotly_chart(fig_heat, use_container_width=True)
-
-        # Signifikanz-Tabelle
-        st.markdown("**Signifikanztabelle (p-Werte)**")
-
-        pval_data = {}
-        for v1 in heatmap_vars:
-            pval_data[v1] = {}
-            for v2 in heatmap_vars:
-                tmp = df[[v1, v2]].dropna()
-                if len(tmp) > 2 and v1 != v2:
-                    _, p = pearsonr(tmp[v1], tmp[v2])
-                    pval_data[v1][v2] = round(p, 4)
-                else:
-                    pval_data[v1][v2] = np.nan
-
-        pval_df = pd.DataFrame(pval_data)
-        st.dataframe(pval_df.style.format("{:.4f}").background_gradient(
-            cmap="RdYlGn_r", vmin=0, vmax=0.1
-        ), use_container_width=True)
-
-    else:
-        st.info("Bitte mindestens 2 Variablen auswählen.")
-
-# =========================================================
-# TAB 4 — REGRESSION
-# =========================================================
-
-with tab4:
-
-    st.subheader("Multiple lineare Regression")
-
-    reg_y = st.selectbox(
-        "Zielvariable (Y)",
-        alle_variablen,
-        index=alle_variablen.index("Ökonomische_Performance"),
-        key="reg_y"
-    )
-
-    reg_x_options = [v for v in alle_variablen if v != reg_y]
-
-    reg_x = st.multiselect(
-        "Prädiktoren (X)",
-        reg_x_options,
-        default=reg_x_options[:3],
-        key="reg_x"
-    )
-
-    if reg_x:
-
-        reg_data = df[[reg_y] + reg_x].dropna()
-
-        if len(reg_data) > len(reg_x) + 1:
-
-            X = sm.add_constant(reg_data[reg_x])
-            y = reg_data[reg_y]
-
-            model  = sm.OLS(y, X).fit()
-
-            st.markdown(f"**N = {len(reg_data)} | R² = {round(model.rsquared, 3)} | adj. R² = {round(model.rsquared_adj, 3)} | F-p = {round(model.f_pvalue, 5)}**")
-
-            coef_df = pd.DataFrame({
-                "Koeffizient": model.params,
-                "Std.-Fehler": model.bse,
-                "t-Wert":      model.tvalues,
-                "p-Wert":      model.pvalues,
-                "CI 2.5%":     model.conf_int()[0],
-                "CI 97.5%":    model.conf_int()[1]
-            }).round(4)
-
-            # p-Wert Signifikanz-Markierung
-            def highlight_pval(val):
-                if val < 0.001: return "background-color:#c6efce"
-                elif val < 0.01: return "background-color:#d9ead3"
-                elif val < 0.05: return "background-color:#fff2cc"
-                elif val < 0.1:  return "background-color:#fce4d6"
-                else: return ""
-
-            st.dataframe(
-                coef_df.style.applymap(highlight_pval, subset=["p-Wert"]),
-                use_container_width=True
-            )
-
-            # Koeffizientenplot
-            fig_coef = px.bar(
-                coef_df.drop("const", errors="ignore").reset_index(),
-                x="index", y="Koeffizient",
-                error_y="Std.-Fehler",
-                title="Regressionskoeffizienten",
-                labels={"index": "Prädiktor"},
-                color="Koeffizient",
-                color_continuous_scale="RdBu"
-            )
-            fig_coef.add_hline(y=0, line_dash="dash", line_color="black")
-            st.plotly_chart(fig_coef, use_container_width=True)
-
-            # Residualplot
-            st.markdown("**Residualplot**")
-            resid_df = pd.DataFrame({
-                "Vorhergesagt": model.fittedvalues,
-                "Residuen":     model.resid
-            })
-            fig_resid = px.scatter(
-                resid_df, x="Vorhergesagt", y="Residuen",
-                title="Residuen vs. Vorhergesagte Werte",
-                color_discrete_sequence=["#4393c3"]
-            )
-            fig_resid.add_hline(y=0, line_dash="dash", line_color="red")
-            st.plotly_chart(fig_resid, use_container_width=True)
-
-        else:
-            st.warning("Nicht genug Beobachtungen für die Regression.")
-    else:
-        st.info("Bitte mindestens einen Prädiktor auswählen.")
-
-# =========================================================
-# TAB 5 — FEHLENDE WERTE
-# =========================================================
-
-with tab5:
-
-    st.subheader("Analyse fehlender Werte")
-
-    missing_df = pd.DataFrame({
-        "Variable":    alle_variablen,
-        "Fehlend (N)": [df[v].isna().sum() for v in alle_variablen],
-        "Fehlend (%)": [(df[v].isna().mean() * 100).round(1) for v in alle_variablen],
-        "Vorhanden (N)":[df[v].notna().sum() for v in alle_variablen]
-    }).sort_values("Fehlend (%)", ascending=False)
-
-    col_miss1, col_miss2, col_miss3 = st.columns(3)
-    col_miss1.metric("Variablen gesamt",       len(alle_variablen))
-    col_miss2.metric("Beobachtungen gesamt",   len(df))
-    col_miss3.metric("Ø fehlend pro Variable", f"{missing_df['Fehlend (%)'].mean():.1f}%")
-
-    st.dataframe(missing_df, use_container_width=True)
-
-    # Balkendiagramm fehlende Werte
-    fig_miss = px.bar(
-        missing_df,
-        x="Variable", y="Fehlend (%)",
-        title="Fehlende Werte pro Variable (%)",
-        color="Fehlend (%)",
-        color_continuous_scale="Reds",
-        text="Fehlend (%)"
-    )
-    fig_miss.update_traces(texttemplate="%{text}%", textposition="outside")
-    fig_miss.update_layout(xaxis_tickangle=-45, height=500)
-    st.plotly_chart(fig_miss, use_container_width=True)
-
-    # Heatmap fehlende Werte (Firmen x Variablen)
-    st.markdown("---")
-    st.subheader("Fehlende-Werte-Muster (Heatmap)")
-
-    miss_heatmap_vars = st.multiselect(
-        "Variablen für Muster-Heatmap",
-        alle_variablen,
-        default=alle_variablen[:10],
-        key="miss_heatmap_vars"
-    )
-
-    if miss_heatmap_vars:
-
-        miss_matrix = df[miss_heatmap_vars].isna().astype(int)
-
-        fig_miss_heat = px.imshow(
-            miss_matrix.T,
-            color_continuous_scale=[[0,"#d4edda"],[1,"#f8d7da"]],
-            labels=dict(color="Fehlend"),
-            title="Fehlende Werte pro Firma (rot = fehlend, grün = vorhanden)",
-            aspect="auto"
-        )
-        fig_miss_heat.update_layout(height=500)
-        st.plotly_chart(fig_miss_heat, use_container_width=True)
-
-# =========================================================
-# TAB 6 — DATENTABELLE
-# =========================================================
-
-with tab6:
-
-    st.subheader("Datentabelle")
-
-    st.dataframe(df, use_container_width=True, height=900)
+    # --------------

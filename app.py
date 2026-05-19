@@ -150,7 +150,7 @@ df["Nutzungsorientierte_PSS"] = safe_mean(["Q13_4","Q13_5","Q13_6","Q13_7"])
 df["Integrierte_PSS"]    = safe_mean(["Q13_1","Q13_2","Q13_3"])
 
 # --- Q8 ---
-df["Anzahl_Rstrategien"]        = df["Q8_Anzahl_Rstrategien"] if "Q8_Anzahl_Rstrategien" in df.columns else np.nan
+df["Anzahl_Rstrategien"] = df["Q8 Anzahl R-Strategien (Fr. 8)"]
 df["Anzahl_Closing_Strategien"] = safe_sum(["Q8_NEU_9","Q8_NEU_10","Q8_NEU_11","Q8_NEU_12"])
 df["Anzahl_Slowing_Strategien"] = safe_sum(["Q8_NEU_3","Q8_NEU_4","Q8_NEU_5","Q8_NEU_6","Q8_NEU_7","Q8_NEU_8"])
 

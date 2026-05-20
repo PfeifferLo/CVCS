@@ -496,12 +496,12 @@ else:
 
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "Karte",
-    "Hotspot-Analyse",
     "Deskriptive Statistik",
     "Korrelationen & Heatmap",
     "Regression",
     "Fehlende Werte",
-    "Datentabelle"
+    "Datentabelle",
+    "Hotspot-Analyse",
 ])
 
 # =========================================================
@@ -668,9 +668,9 @@ with tab1:
 # TAB 2 — HOTSPOT-ANALYSE
 # =========================================================
 
-with tab2:
+with tab7:
 
-    st.subheader("🔥 Hotspot-Analyse")
+    st.subheader(" Hotspot-Analyse")
     st.markdown(
         "Diese Karte visualisiert geografische Konzentrationen von Unternehmen "
         "und deren Ausprägungen. Wähle Analysemodus und Variable."
@@ -872,7 +872,7 @@ with tab2:
 # TAB 3 — DESKRIPTIVE STATISTIK
 # =========================================================
 
-with tab3:
+with tab2:
 
     st.subheader("Deskriptive Statistik")
 
@@ -923,7 +923,7 @@ with tab3:
 # TAB 4 — KORRELATIONEN & HEATMAP
 # =========================================================
 
-with tab4:
+with tab3:
 
     st.subheader("Pearson-Korrelation (Paarweise)")
 
@@ -1020,7 +1020,7 @@ with tab4:
 # TAB 5 — REGRESSION
 # =========================================================
 
-with tab5:
+with tab4:
 
     st.subheader("Multiple lineare Regression")
 
@@ -1171,7 +1171,7 @@ with tab5:
 # TAB 6 — FEHLENDE WERTE
 # =========================================================
 
-with tab6:
+with tab5:
 
     st.subheader("Analyse fehlender Werte")
 
@@ -1227,7 +1227,7 @@ with tab6:
 # TAB 7 — DATENTABELLE
 # =========================================================
 
-with tab7:
+with tab6:
 
     st.subheader("Datentabelle")
     st.dataframe(df, use_container_width=True, height=900)

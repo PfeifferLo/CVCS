@@ -206,6 +206,148 @@ alle_variablen = [
 vi_variablen = ["VI_Mittelwert", "VI_Closing", "VI_Slowing"]
 
 # =========================================================
+# LEGENDE — Konfiguration pro Variable
+# Definiert: (max_wert, stufen_liste mit (schwelle, farbe, label))
+# =========================================================
+
+# Für count-basierte Variablen eigene Legenden
+LEGENDE_CONFIG = {
+    "Anzahl_Rstrategien": {
+        "stufen": [
+            (1,  "#ffffcc", "1"),
+            (2,  "#ffeda0", "2"),
+            (3,  "#fed976", "3"),
+            (4,  "#feb24c", "4"),
+            (5,  "#fd8d3c", "5"),
+            (6,  "#fc4e2a", "6"),
+            (7,  "#e31a1c", "7"),
+            (8,  "#bd0026", "8"),
+            (9,  "#800026", "9"),
+            (10, "#6b0020", "10"),
+            (11, "#4d0015", "11"),
+            (12, "#2d000c", "12"),
+        ]
+    },
+    "Anzahl_Closing_Strategien": {
+        "stufen": [
+            (1, "#fee5d9", "1"),
+            (2, "#fcae91", "2"),
+            (3, "#fb6a4a", "3"),
+            (4, "#cb181d", "4"),
+        ]
+    },
+    "Anzahl_Slowing_Strategien": {
+        "stufen": [
+            (1, "#edf8e9", "1"),
+            (2, "#bae4b3", "2"),
+            (3, "#74c476", "3"),
+            (4, "#31a354", "4"),
+            (5, "#006d2c", "5"),
+            (6, "#00441b", "6"),
+        ]
+    },
+    "Firmenalter": {
+        "stufen": [
+            (1, "#ffffcc", "1  –  unter 5 Jahre"),
+            (2, "#a1dab4", "2  –  5–9 Jahre"),
+            (3, "#41b6c4", "3  –  10–49 Jahre"),
+            (4, "#225ea8", "4  –  50+ Jahre"),
+        ]
+    },
+    "Firmengröße": {
+        "stufen": [
+            (1, "#f7fbff", "1  –  1–9 MA"),
+            (2, "#c6dbef", "2  –  10–49 MA"),
+            (3, "#6baed6", "3  –  50–249 MA"),
+            (4, "#2171b5", "4  –  250–499 MA"),
+            (5, "#08306b", "5  –  500+ MA"),
+        ]
+    },
+}
+
+def get_color_and_legend(variable, value=None):
+    """
+    Gibt (farb_funktion, legende_html) zurück.
+    - Für VI-Variablen: 7-stufige Divergenz-Skala
+    - Für Anzahl-Variablen: individuelle Skalen (1-12, 1-4, 1-6)
+    - Sonst: 5-stufige Skala
+    """
+
+    if variable in vi_variablen:
+        def color_fn(v):
+            if v <= 1:   return "#b2182b"
+            elif v <= 2: return "#d6604d"
+            elif v <= 3: return "#f4a582"
+            elif v <= 4: return "#fddbc7"
+            elif v <= 5: return "#92c5de"
+            elif v <= 6: return "#4393c3"
+            else:        return "#2166ac"
+
+        legend = f"""
+        <div style="position:fixed;bottom:40px;right:40px;z-index:9999;
+        background-color:white;padding:15px;border:2px solid grey;
+        border-radius:10px;font-size:14px;">
+        <b>{variable}</b><br><br>
+        <div style="background:#b2182b;width:20px;height:20px;display:inline-block;"></div> 1<br>
+        <div style="background:#d6604d;width:20px;height:20px;display:inline-block;"></div> 2<br>
+        <div style="background:#f4a582;width:20px;height:20px;display:inline-block;"></div> 3<br>
+        <div style="background:#fddbc7;width:20px;height:20px;display:inline-block;"></div> 4<br>
+        <div style="background:#92c5de;width:20px;height:20px;display:inline-block;"></div> 5<br>
+        <div style="background:#4393c3;width:20px;height:20px;display:inline-block;"></div> 6<br>
+        <div style="background:#2166ac;width:20px;height:20px;display:inline-block;"></div> 7<br><br>
+        <div style="background:#aaaaaa;width:20px;height:20px;display:inline-block;"></div> kein Wert (NA)
+        </div>
+        """
+        return color_fn, legend
+
+    elif variable in LEGENDE_CONFIG:
+        stufen = LEGENDE_CONFIG[variable]["stufen"]
+
+        def color_fn(v):
+            for schwelle, farbe, _ in stufen:
+                if v <= schwelle:
+                    return farbe
+            return stufen[-1][1]  # fallback: dunkelste Farbe
+
+        stufen_html = "".join(
+            f'<div style="background:{farbe};width:20px;height:20px;display:inline-block;"></div> {label}<br>'
+            for _, farbe, label in stufen
+        )
+        legend = f"""
+        <div style="position:fixed;bottom:40px;right:40px;z-index:9999;
+        background-color:white;padding:15px;border:2px solid grey;
+        border-radius:10px;font-size:14px;max-height:400px;overflow-y:auto;">
+        <b>{variable}</b><br><br>
+        {stufen_html}
+        <br><div style="background:#aaaaaa;width:20px;height:20px;display:inline-block;"></div> kein Wert (NA)
+        </div>
+        """
+        return color_fn, legend
+
+    else:
+        def color_fn(v):
+            if v <= 1:   return "#d73027"
+            elif v <= 2: return "#fc8d59"
+            elif v <= 3: return "#fee08b"
+            elif v <= 4: return "#91cf60"
+            else:        return "#1a9850"
+
+        legend = f"""
+        <div style="position:fixed;bottom:40px;right:40px;z-index:9999;
+        background-color:white;padding:15px;border:2px solid grey;
+        border-radius:10px;font-size:14px;">
+        <b>{variable}</b><br><br>
+        <div style="background:#d73027;width:20px;height:20px;display:inline-block;"></div> 1<br>
+        <div style="background:#fc8d59;width:20px;height:20px;display:inline-block;"></div> 2<br>
+        <div style="background:#fee08b;width:20px;height:20px;display:inline-block;"></div> 3<br>
+        <div style="background:#91cf60;width:20px;height:20px;display:inline-block;"></div> 4<br>
+        <div style="background:#1a9850;width:20px;height:20px;display:inline-block;"></div> 5<br><br>
+        <div style="background:#aaaaaa;width:20px;height:20px;display:inline-block;"></div> kein Wert (NA)
+        </div>
+        """
+        return color_fn, legend
+
+# =========================================================
 # SIDEBAR
 # =========================================================
 
@@ -264,59 +406,8 @@ with tab1:
 
     m = folium.Map(location=[47.6, 14.5], zoom_start=7, tiles="OpenStreetMap")
 
-    # --------------------------------------------------
-    # FARBEN + LEGENDE
-    # --------------------------------------------------
-
-    if variable in vi_variablen:
-
-        def get_color(v):
-            if v <= 1:   return "#b2182b"
-            elif v <= 2: return "#d6604d"
-            elif v <= 3: return "#f4a582"
-            elif v <= 4: return "#fddbc7"
-            elif v <= 5: return "#92c5de"
-            elif v <= 6: return "#4393c3"
-            else:        return "#2166ac"
-
-        legend_html = f"""
-        <div style="position:fixed;bottom:40px;right:40px;z-index:9999;
-        background-color:white;padding:15px;border:2px solid grey;
-        border-radius:10px;font-size:14px;">
-        <b>{variable}</b><br><br>
-        <div style="background:#b2182b;width:20px;height:20px;display:inline-block;"></div> 1<br>
-        <div style="background:#d6604d;width:20px;height:20px;display:inline-block;"></div> 2<br>
-        <div style="background:#f4a582;width:20px;height:20px;display:inline-block;"></div> 3<br>
-        <div style="background:#fddbc7;width:20px;height:20px;display:inline-block;"></div> 4<br>
-        <div style="background:#92c5de;width:20px;height:20px;display:inline-block;"></div> 5<br>
-        <div style="background:#4393c3;width:20px;height:20px;display:inline-block;"></div> 6<br>
-        <div style="background:#2166ac;width:20px;height:20px;display:inline-block;"></div> 7<br><br>
-        <div style="background:#aaaaaa;width:20px;height:20px;display:inline-block;"></div> kein Wert (NA)
-        </div>
-        """
-
-    else:
-
-        def get_color(v):
-            if v <= 1:   return "#d73027"
-            elif v <= 2: return "#fc8d59"
-            elif v <= 3: return "#fee08b"
-            elif v <= 4: return "#91cf60"
-            else:        return "#1a9850"
-
-        legend_html = f"""
-        <div style="position:fixed;bottom:40px;right:40px;z-index:9999;
-        background-color:white;padding:15px;border:2px solid grey;
-        border-radius:10px;font-size:14px;">
-        <b>{variable}</b><br><br>
-        <div style="background:#d73027;width:20px;height:20px;display:inline-block;"></div> 1<br>
-        <div style="background:#fc8d59;width:20px;height:20px;display:inline-block;"></div> 2<br>
-        <div style="background:#fee08b;width:20px;height:20px;display:inline-block;"></div> 3<br>
-        <div style="background:#91cf60;width:20px;height:20px;display:inline-block;"></div> 4<br>
-        <div style="background:#1a9850;width:20px;height:20px;display:inline-block;"></div> 5<br><br>
-        <div style="background:#aaaaaa;width:20px;height:20px;display:inline-block;"></div> kein Wert (NA)
-        </div>
-        """
+    # Farb-Funktion und Legende basierend auf Variable
+    get_color, legend_html = get_color_and_legend(variable)
 
     # --------------------------------------------------
     # MARKER — farbig (mit Wert)
@@ -474,8 +565,8 @@ with tab3:
         st.plotly_chart(fig_heat, use_container_width=True)
 
         # --------------------------------------------------
-        # p-Wert Tabelle — via Plotly go.Heatmap
-        # (kein matplotlib / background_gradient!)
+        # p-Wert Tabelle — via px.imshow (gleiche Ausrichtung
+        # wie Korrelationsmatrix oben)
         # --------------------------------------------------
 
         st.markdown("**Signifikanztabelle (p-Werte)**")
@@ -493,11 +584,11 @@ with tab3:
                     else:
                         pval_matrix.loc[v1, v2] = np.nan
 
-        fig_pval = go.Figure(data=go.Heatmap(
-            z=pval_matrix.values.astype(float),
-            x=heatmap_vars,
-            y=heatmap_vars,
-            colorscale=[
+        # Gleiche Darstellung wie Korrelationsmatrix: px.imshow mit x-Achse oben
+        fig_pval = px.imshow(
+            pval_matrix.astype(float),
+            text_auto=".4f",
+            color_continuous_scale=[
                 [0.000, "#1a9850"],
                 [0.010, "#91cf60"],
                 [0.050, "#fee08b"],
@@ -505,14 +596,13 @@ with tab3:
                 [1.000, "#d73027"],
             ],
             zmin=0, zmax=1,
-            text=pval_matrix.round(4).values,
-            texttemplate="%{text}",
-            hoverongaps=False
-        ))
-        fig_pval.update_layout(
             title="p-Werte (grün = signifikant, rot = nicht signifikant)",
-            height=500,
-            xaxis=dict(side="top")
+            aspect="auto"
+        )
+        fig_pval.update_layout(
+            height=600,
+            xaxis=dict(side="top"),
+            coloraxis_colorbar=dict(title="p-Wert")
         )
         st.plotly_chart(fig_pval, use_container_width=True)
 
@@ -560,13 +650,31 @@ with tab4:
                 f"F-p = {round(model.f_pvalue, 5)}**"
             )
 
+            # --------------------------------------------------
+            # Standardisierte Koeffizienten (Beta)
+            # z-standardisierte X und Y → OLS erneut fitten
+            # --------------------------------------------------
+            reg_data_std = reg_data.copy()
+            for col in [reg_y] + reg_x:
+                col_std = reg_data_std[col].std()
+                if col_std > 0:
+                    reg_data_std[col] = (reg_data_std[col] - reg_data_std[col].mean()) / col_std
+                else:
+                    reg_data_std[col] = 0.0
+
+            X_std       = sm.add_constant(reg_data_std[reg_x])
+            y_std       = reg_data_std[reg_y]
+            model_std   = sm.OLS(y_std, X_std).fit()
+            beta_series = model_std.params  # standardisierte Koeffizienten
+
             coef_df = pd.DataFrame({
-                "Koeffizient": model.params,
-                "Std.-Fehler": model.bse,
-                "t-Wert":      model.tvalues,
-                "p-Wert":      model.pvalues,
-                "CI 2.5%":     model.conf_int()[0],
-                "CI 97.5%":    model.conf_int()[1]
+                "Koeffizient":  model.params,
+                "Beta (std.)":  beta_series,
+                "Std.-Fehler":  model.bse,
+                "t-Wert":       model.tvalues,
+                "p-Wert":       model.pvalues,
+                "CI 2.5%":      model.conf_int()[0],
+                "CI 97.5%":     model.conf_int()[1]
             }).round(4)
 
             # Farbkodierung p-Werte ohne matplotlib
@@ -589,6 +697,7 @@ with tab4:
                     values=[
                         coef_df.index.tolist(),
                         coef_df["Koeffizient"].tolist(),
+                        coef_df["Beta (std.)"].tolist(),
                         coef_df["Std.-Fehler"].tolist(),
                         coef_df["t-Wert"].tolist(),
                         coef_df["p-Wert"].tolist(),
@@ -596,6 +705,7 @@ with tab4:
                         coef_df["CI 97.5%"].tolist(),
                     ],
                     fill_color=[
+                        ["#f5f5f5"] * len(coef_df),
                         ["#f5f5f5"] * len(coef_df),
                         ["#f5f5f5"] * len(coef_df),
                         ["#f5f5f5"] * len(coef_df),
@@ -609,23 +719,36 @@ with tab4:
                 )
             )])
             fig_coef_table.update_layout(
-                title="Regressionskoeffizienten (p-Wert: grün = signifikant)",
+                title="Regressionskoeffizienten (p-Wert: grün = signifikant | Beta = standardisierter Koeffizient)",
                 height=350
             )
             st.plotly_chart(fig_coef_table, use_container_width=True)
 
-            # Koeffizientenplot
+            # Koeffizientenplot (unstandardisiert)
             fig_coef = px.bar(
                 coef_df.drop("const", errors="ignore").reset_index(),
                 x="index", y="Koeffizient",
                 error_y="Std.-Fehler",
-                title="Regressionskoeffizienten",
+                title="Regressionskoeffizienten (unstandardisiert)",
                 labels={"index": "Prädiktor"},
                 color="Koeffizient",
                 color_continuous_scale="RdBu"
             )
             fig_coef.add_hline(y=0, line_dash="dash", line_color="black")
             st.plotly_chart(fig_coef, use_container_width=True)
+
+            # Standardisierter Koeffizientenplot (Beta)
+            beta_plot_df = coef_df.drop("const", errors="ignore").reset_index()
+            fig_beta = px.bar(
+                beta_plot_df,
+                x="index", y="Beta (std.)",
+                title="Standardisierte Regressionskoeffizienten (Beta)",
+                labels={"index": "Prädiktor"},
+                color="Beta (std.)",
+                color_continuous_scale="RdBu"
+            )
+            fig_beta.add_hline(y=0, line_dash="dash", line_color="black")
+            st.plotly_chart(fig_beta, use_container_width=True)
 
             # Residualplot
             resid_df = pd.DataFrame({

@@ -401,7 +401,7 @@ show_na = st.sidebar.checkbox("Firmen ohne Wert (NA) anzeigen", value=True, key=
 # =========================================================
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔍 Erweiterte Filter")
+st.sidebar.markdown("### Erweiterte Filter")
 
 # --- Firmengröße ---
 st.sidebar.markdown("**Firmengröße**")
@@ -439,31 +439,6 @@ if vi_filter_var != "(kein Filter)" and vi_filter_var in df.columns:
         step=0.1,
         key="vi_filter_range"
     )
-
-# --- Branche ---
-st.sidebar.markdown("---")
-st.sidebar.markdown("**Branche**")
-branche_col = None
-for candidate in ["Branche", "branche", "Q_Branche", "Sektor", "sektor", "NACE", "nace"]:
-    if candidate in df.columns:
-        branche_col = candidate
-        break
-
-if branche_col:
-    branchen_alle = sorted(df[branche_col].dropna().unique().tolist())
-    alle_branchen_an = st.sidebar.checkbox("Alle Branchen", value=True, key="filter_branche_alle")
-    if not alle_branchen_an:
-        aktive_branchen = st.sidebar.multiselect(
-            "Branchen auswählen",
-            branchen_alle,
-            default=branchen_alle,
-            key="filter_branche_multi"
-        )
-    else:
-        aktive_branchen = branchen_alle
-else:
-    st.sidebar.caption("ℹ️ Keine Branchenspalte gefunden (erwartet: 'Branche', 'Sektor', 'NACE' o.ä.)")
-    aktive_branchen = None
 
 # --- IQD-Gruppe ---
 st.sidebar.markdown("---")

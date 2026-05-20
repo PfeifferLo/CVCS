@@ -584,10 +584,6 @@ def build_popup(row, variable):
         if vi in row and pd.notna(row[vi]):
             lines.append(f"<b>{vi}:</b> {round(row[vi], 2)}")
 
-    # Branche
-    if branche_col and branche_col in row and pd.notna(row[branche_col]):
-        lines.append(f"<b>Branche:</b> {row[branche_col]}")
-
     # IQD-Gruppe
     if iqd_col and iqd_col in row and pd.notna(row[iqd_col]):
         lines.append(f"<b>IQD-Gruppe:</b> {row[iqd_col]}")

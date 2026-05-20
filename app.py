@@ -360,6 +360,25 @@ def get_color_and_legend(variable, value=None):
         return color_fn, legend
 
 # =========================================================
+# HILFSFUNKTION — Stufen für Filter-Checkboxen
+# =========================================================
+
+def get_stufen_fuer_variable(var):
+    """
+    Gibt eine Liste von (schwelle, farbe, label) zurück,
+    die den möglichen diskreten Werten der Variable entsprechen.
+    Für kontinuierliche Variablen werden ganzzahlige Stufen gebildet.
+    """
+    if var in vi_variablen:
+        farben = ["#b2182b","#d6604d","#f4a582","#fddbc7","#92c5de","#4393c3","#2166ac"]
+        return [(i+1, farben[i], str(i+1)) for i in range(7)]
+    elif var in LEGENDE_CONFIG:
+        return LEGENDE_CONFIG[var]["stufen"]
+    else:
+        farben = ["#d73027","#fc8d59","#fee08b","#91cf60","#1a9850"]
+        return [(i+1, farben[i], str(i+1)) for i in range(5)]
+
+# =========================================================
 # SIDEBAR
 # =========================================================
 
@@ -375,6 +394,30 @@ radius = st.sidebar.slider(
     "Punktgröße", 3, 20, 8,
     key="radius_slider"
 )
+
+# --- Filter-Checkboxen je Stufe ---
+st.sidebar.markdown("---")
+st.sidebar.markdown(f"**Filter: {variable}**")
+
+alle_stufen = get_stufen_fuer_variable(variable)
+
+# "Alle auswählen / Alle abwählen" Toggle
+alle_an = st.sidebar.checkbox("Alle Stufen anzeigen", value=True, key="filter_alle")
+
+aktive_stufen = set()
+for schwelle, farbe, label in alle_stufen:
+    checked = alle_an  # Standardmäßig an wenn "Alle" aktiviert
+    cb = st.sidebar.checkbox(
+        label,
+        value=checked,
+        key=f"filter_{variable}_{schwelle}",
+        disabled=alle_an  # gesperrt wenn "Alle" aktiv
+    )
+    if alle_an or cb:
+        aktive_stufen.add(schwelle)
+
+# NA-Firmen anzeigen?
+show_na = st.sidebar.checkbox("Firmen ohne Wert (NA) anzeigen", value=True, key="filter_na")
 
 # =========================================================
 # TABS
@@ -408,22 +451,45 @@ with tab1:
     )
     df_map = df[coords_mask].copy()
 
-    # Aufteilen: mit Wert vs. NA für gewählte Variable
-    map_data_colored = df_map[df_map[variable].notna()].copy()
-    map_data_na      = df_map[df_map[variable].isna()].copy()
+    # Aufteilen: mit Wert vs. NA
+    map_data_all    = df_map[df_map[variable].notna()].copy()
+    map_data_na     = df_map[df_map[variable].isna()].copy()
 
+    # --------------------------------------------------
+    # FILTER: Nur Firmen anzeigen, deren gerundeter Wert
+    # in den aktiven Stufen ist.
+    # Für kontinuierliche Variablen: round auf nächste ganze Zahl,
+    # dann prüfen ob diese Zahl als Schwelle in aktive_stufen ist.
+    # --------------------------------------------------
+    def stufe_fuer_wert(v, stufen):
+        """Gibt die Schwelle zurück, der der Wert v zugeordnet wird."""
+        for schwelle, _, _ in stufen:
+            if v <= schwelle:
+                return schwelle
+        return stufen[-1][0]
+
+    if not alle_an:
+        map_data_colored = map_data_all[
+            map_data_all[variable].apply(
+                lambda v: stufe_fuer_wert(v, alle_stufen) in aktive_stufen
+            )
+        ].copy()
+    else:
+        map_data_colored = map_data_all.copy()
+
+    # Metriken
     col_info1, col_info2, col_info3 = st.columns(3)
     col_info1.metric("Firmen auf Karte (gesamt)", len(df_map))
-    col_info2.metric(f"  davon mit Wert für '{variable}'", len(map_data_colored))
+    col_info2.metric(f"Sichtbar nach Filter", len(map_data_colored) + (len(map_data_na) if show_na else 0))
     col_info3.metric("Firmen ohne Koordinaten (NA)", df["latitude"].isna().sum())
 
     m = folium.Map(location=[47.6, 14.5], zoom_start=7, tiles="OpenStreetMap")
 
-    # Farb-Funktion und Legende basierend auf Variable
+    # Farb-Funktion und Legende
     get_color, legend_html = get_color_and_legend(variable)
 
     # --------------------------------------------------
-    # MARKER — farbig (mit Wert)
+    # MARKER — farbig (gefilterte Firmen mit Wert)
     # --------------------------------------------------
 
     for _, row in map_data_colored.iterrows():
@@ -444,25 +510,26 @@ with tab1:
         ).add_to(m)
 
     # --------------------------------------------------
-    # MARKER — grau (NA)
+    # MARKER — grau (NA) — nur wenn show_na aktiv
     # --------------------------------------------------
 
-    for _, row in map_data_na.iterrows():
-        firma = row["Zugehörigkeit"] if "Zugehörigkeit" in row and pd.notna(row["Zugehörigkeit"]) else "k.A."
-        popup = f"""
-        <b>Firma:</b> {firma}<br>
-        <b>Variable:</b> {variable}<br>
-        <b>Wert:</b> kein Wert (NA)
-        """
-        folium.CircleMarker(
-            location=[row["latitude"], row["longitude"]],
-            radius=radius,
-            color="black", weight=1,
-            fill=True,
-            fill_color="#aaaaaa",
-            fill_opacity=0.7,
-            popup=folium.Popup(popup, max_width=250)
-        ).add_to(m)
+    if show_na:
+        for _, row in map_data_na.iterrows():
+            firma = row["Zugehörigkeit"] if "Zugehörigkeit" in row and pd.notna(row["Zugehörigkeit"]) else "k.A."
+            popup = f"""
+            <b>Firma:</b> {firma}<br>
+            <b>Variable:</b> {variable}<br>
+            <b>Wert:</b> kein Wert (NA)
+            """
+            folium.CircleMarker(
+                location=[row["latitude"], row["longitude"]],
+                radius=radius,
+                color="black", weight=1,
+                fill=True,
+                fill_color="#aaaaaa",
+                fill_opacity=0.7,
+                popup=folium.Popup(popup, max_width=250)
+            ).add_to(m)
 
     m.get_root().html.add_child(folium.Element(legend_html))
     st_folium(m, width=1400, height=850)

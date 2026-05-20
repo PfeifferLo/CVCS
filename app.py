@@ -65,7 +65,15 @@ df = df.replace("", np.nan)
 # KOORDINATEN FIX
 # =========================================================
 
-def fix_coordinates(x):
+def fix_coord(x, valid_min, valid_max):
+    """
+    Bereinigt einen Koordinatenwert.
+    - Komma -> Punkt
+    - Falls bereits im gueltigen Bereich: direkt zurueck
+    - Falls skaliert gespeichert (z.B. 477500000 statt 47.75): durch 10^7 teilen
+    - Versuch mit 10^6-Skalierung als Fallback
+    - Sonst NaN
+    """
     if pd.isna(x):
         return np.nan
     x = str(x).replace(",", ".")
@@ -73,14 +81,18 @@ def fix_coordinates(x):
         x = float(x)
     except:
         return np.nan
-    if 40 <= x <= 50:
+    if valid_min <= x <= valid_max:
         return x
-    if x > 1000000:
-        return x / 10000000
-    return x
+    scaled7 = x / 10_000_000
+    if valid_min <= scaled7 <= valid_max:
+        return scaled7
+    scaled6 = x / 1_000_000
+    if valid_min <= scaled6 <= valid_max:
+        return scaled6
+    return np.nan
 
-df["latitude"]  = df["latitude"].apply(fix_coordinates)
-df["longitude"] = df["longitude"].apply(fix_coordinates)
+df["latitude"]  = df["latitude"].apply(lambda x: fix_coord(x, 46.0, 49.5))
+df["longitude"] = df["longitude"].apply(lambda x: fix_coord(x,  9.0, 18.5))
 
 # =========================================================
 # NUMERISCHE SPALTEN
@@ -400,9 +412,10 @@ with tab1:
     map_data_colored = df_map[df_map[variable].notna()].copy()
     map_data_na      = df_map[df_map[variable].isna()].copy()
 
-    col_info1, col_info2 = st.columns(2)
-    col_info1.metric("Firmen mit Wert (Kleineres n, da die Adresscodierung nicht bei allen Firmen funktionierte)",       len(map_data_colored))
-    col_info2.metric("Firmen ohne Wert (NA)", len(map_data_na))
+    col_info1, col_info2, col_info3 = st.columns(3)
+    col_info1.metric("Firmen auf Karte (gesamt)", len(df_map))
+    col_info2.metric(f"  davon mit Wert für '{variable}'", len(map_data_colored))
+    col_info3.metric("Firmen ohne Koordinaten (NA)", df["latitude"].isna().sum())
 
     m = folium.Map(location=[47.6, 14.5], zoom_start=7, tiles="OpenStreetMap")
 

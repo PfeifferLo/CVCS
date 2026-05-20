@@ -534,11 +534,6 @@ def apply_extended_filters(df_in):
             lambda v: pd.isna(v) or (vi_filter_min <= v <= vi_filter_max)
         )
 
-    # Branche
-    if branche_col and aktive_branchen is not None and not alle_branchen_an:
-        mask &= df_in[branche_col].apply(
-            lambda v: pd.isna(v) or v in aktive_branchen
-        )
 
     # IQD
     if iqd_col and aktive_iqd is not None and not alle_iqd_an:

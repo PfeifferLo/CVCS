@@ -860,8 +860,6 @@ with tab2:
         # Top-10-Firmen nach Wert
         st.markdown(f"**Top 10 Firmen nach {hotspot_var}**")
         top_cols = ["Zugehörigkeit", hotspot_var]
-        if branche_col:
-            top_cols.append(branche_col)
         if iqd_col:
             top_cols.append(iqd_col)
         if "Firmengröße" in df_hs_var.columns:

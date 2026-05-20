@@ -9,14 +9,12 @@ import numpy as np
 import folium
 import plotly.express as px
 import plotly.graph_objects as go
-import time
 
 from streamlit_folium import st_folium
 from scipy.stats import pearsonr
 import statsmodels.api as sm
 
 import gspread
-from gspread.exceptions import APIError
 from google.oauth2.service_account import Credentials
 
 # =========================================================
@@ -31,50 +29,31 @@ st.set_page_config(
 st.title("CVCS Dashboard")
 
 # =========================================================
-# GOOGLE SHEETS — ROBUSTE VERBINDUNG MIT RETRY + CACHE
+# GOOGLE SHEETS VERBINDUNG
 # =========================================================
 
-@st.cache_data(ttl=300)   # 5 Minuten Cache → verhindert Quota-Fehler bei Reload
-def lade_daten():
-    scope = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    creds = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
-        scopes=scope
-    )
-    client = gspread.authorize(creds)
+scope = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 
-    # Retry-Logik: bis zu 4 Versuche mit exponential backoff
-    max_versuche = 4
-    for versuch in range(max_versuche):
-        try:
-            sheet = client.open_by_key(
-                "1Z8tsOECgROa69aUUbST0Z5tE0Eh-lZoBv-e0os0DZvY"
-            ).sheet1
-            data = sheet.get_all_records()
-            return pd.DataFrame(data)
-        except APIError as e:
-            if versuch < max_versuche - 1:
-                wartezeit = 2 ** versuch   # 1s, 2s, 4s
-                time.sleep(wartezeit)
-            else:
-                raise e
+creds = Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"],
+    scopes=scope
+)
 
-# Daten laden — Fehler abfangen und anzeigen
-try:
-    df = lade_daten()
-except APIError as e:
-    st.error(
-        "❌ Google Sheets konnte nicht geladen werden. "
-        "Bitte Seite neu laden oder die Google API-Berechtigungen prüfen.\n\n"
-        f"Details: {str(e)}"
-    )
-    st.stop()
-except Exception as e:
-    st.error(f"❌ Unbekannter Fehler beim Laden der Daten: {str(e)}")
-    st.stop()
+client = gspread.authorize(creds)
+
+# =========================================================
+# GOOGLE SHEET LADEN
+# =========================================================
+
+sheet = client.open_by_key(
+    "1Z8tsOECgROa69aUUbST0Z5tE0Eh-lZoBv-e0os0DZvY"
+).sheet1
+
+data = sheet.get_all_records()
+df = pd.DataFrame(data)
 
 # =========================================================
 # LEERE STRINGS -> NA
@@ -83,14 +62,14 @@ except Exception as e:
 df = df.replace("", np.nan)
 
 # =========================================================
-# KOORDINATEN FIX — getrennt für lat / lon
+# KOORDINATEN FIX
 # =========================================================
 
 def fix_coord(x, valid_min, valid_max):
     """
     Bereinigt einen Koordinatenwert.
     - Komma -> Punkt
-    - Falls bereits im gültigen Bereich: direkt zurück
+    - Falls bereits im gueltigen Bereich: direkt zurueck
     - Falls skaliert gespeichert (z.B. 477500000 statt 47.75): durch 10^7 teilen
     - Versuch mit 10^6-Skalierung als Fallback
     - Sonst NaN
@@ -180,12 +159,12 @@ df["Design_Biologischer_Kreislauf"] = safe_mean(["Q12_9","Q12_10","Q12_11","Q12_
 
 # --- Q13 ---
 df["Nutzungsorientierte_PSS"] = safe_mean(["Q13_4","Q13_5","Q13_6","Q13_7"])
-df["Integrierte_PSS"]         = safe_mean(["Q13_1","Q13_2","Q13_3"])
+df["Integrierte_PSS"]    = safe_mean(["Q13_1","Q13_2","Q13_3"])
 
 # --- Q8 ---
-df["Anzahl_Rstrategien"]        = df["Q8 Anzahl R-Strategien (Fr. 8)"] if "Q8 Anzahl R-Strategien (Fr. 8)" in df.columns else np.nan
-df["Anzahl_Closing_Strategien"] = df["Anzahl_Closing_Strategien"]      if "Anzahl_Closing_Strategien"      in df.columns else np.nan
-df["Anzahl_Slowing_Strategien"] = df["Anzahl_Slowing_Strategien"]      if "Anzahl_Slowing_Strategien"      in df.columns else np.nan
+df["Anzahl_Rstrategien"] = df["Q8 Anzahl R-Strategien (Fr. 8)"]
+df["Anzahl_Closing_Strategien"] = df["Anzahl_Closing_Strategien"]
+df["Anzahl_Slowing_Strategien"] = df["Anzahl_Slowing_Strategien"]
 
 # --- Q6 ---
 df["Strategische_Integration"] = safe_mean(["Q6_1","Q6_2","Q6_3","Q6_4","Q6_5","Q6_6","Q6_7","Q6_8"])
@@ -224,11 +203,7 @@ df["Firmenalter"] = df["Q42"] if "Q42" in df.columns else np.nan
 # =========================================================
 
 alle_variablen = [
-    "VI_Mittelwert", "VI_Closing", "VI_Slowing",
-    "Strategische_Integration",
-    "Legitimität", "Externer_Druck",
-    "Lern_und_Kooperationsorientierung",
-    "Differenzierungs_Wettbewerbsorientierung",
+    "VI_Mittelwert", "VI_Closing", "VI_Slowing","Strategische_Integration","Legitimität", "Externer_Druck", "Lern_und_Kooperationsorientierung", "Differenzierungs_Wettbewerbsorientierung",
     "Langlebigkeit_Repairability", "Design_for_Recycling",
     "Design_Biologischer_Kreislauf",
     "Nutzungsorientierte_PSS", "Integrierte_PSS",
@@ -244,8 +219,10 @@ vi_variablen = ["VI_Mittelwert", "VI_Closing", "VI_Slowing"]
 
 # =========================================================
 # LEGENDE — Konfiguration pro Variable
+# Definiert: (max_wert, stufen_liste mit (schwelle, farbe, label))
 # =========================================================
 
+# Für count-basierte Variablen eigene Legenden
 LEGENDE_CONFIG = {
     "Anzahl_Rstrategien": {
         "stufen": [
@@ -300,11 +277,14 @@ LEGENDE_CONFIG = {
     },
 }
 
-# =========================================================
-# FARB-FUNKTIONEN & LEGENDE
-# =========================================================
+def get_color_and_legend(variable, value=None):
+    """
+    Gibt (farb_funktion, legende_html) zurück.
+    - Für VI-Variablen: 7-stufige Divergenz-Skala
+    - Für Anzahl-Variablen: individuelle Skalen (1-12, 1-4, 1-6)
+    - Sonst: 5-stufige Skala
+    """
 
-def get_color_and_legend(variable):
     if variable in vi_variablen:
         def color_fn(v):
             if v <= 1:   return "#b2182b"
@@ -314,6 +294,7 @@ def get_color_and_legend(variable):
             elif v <= 5: return "#92c5de"
             elif v <= 6: return "#4393c3"
             else:        return "#2166ac"
+
         legend = f"""
         <div style="position:fixed;bottom:40px;right:40px;z-index:9999;
         background-color:white;padding:15px;border:2px solid grey;
@@ -327,16 +308,19 @@ def get_color_and_legend(variable):
         <div style="background:#4393c3;width:20px;height:20px;display:inline-block;"></div> 6<br>
         <div style="background:#2166ac;width:20px;height:20px;display:inline-block;"></div> 7<br><br>
         <div style="background:#aaaaaa;width:20px;height:20px;display:inline-block;"></div> kein Wert (NA)
-        </div>"""
+        </div>
+        """
         return color_fn, legend
 
     elif variable in LEGENDE_CONFIG:
         stufen = LEGENDE_CONFIG[variable]["stufen"]
+
         def color_fn(v):
             for schwelle, farbe, _ in stufen:
                 if v <= schwelle:
                     return farbe
-            return stufen[-1][1]
+            return stufen[-1][1]  # fallback: dunkelste Farbe
+
         stufen_html = "".join(
             f'<div style="background:{farbe};width:20px;height:20px;display:inline-block;"></div> {label}<br>'
             for _, farbe, label in stufen
@@ -348,7 +332,8 @@ def get_color_and_legend(variable):
         <b>{variable}</b><br><br>
         {stufen_html}
         <br><div style="background:#aaaaaa;width:20px;height:20px;display:inline-block;"></div> kein Wert (NA)
-        </div>"""
+        </div>
+        """
         return color_fn, legend
 
     else:
@@ -358,6 +343,7 @@ def get_color_and_legend(variable):
             elif v <= 3: return "#fee08b"
             elif v <= 4: return "#91cf60"
             else:        return "#1a9850"
+
         legend = f"""
         <div style="position:fixed;bottom:40px;right:40px;z-index:9999;
         background-color:white;padding:15px;border:2px solid grey;
@@ -369,7 +355,8 @@ def get_color_and_legend(variable):
         <div style="background:#91cf60;width:20px;height:20px;display:inline-block;"></div> 4<br>
         <div style="background:#1a9850;width:20px;height:20px;display:inline-block;"></div> 5<br><br>
         <div style="background:#aaaaaa;width:20px;height:20px;display:inline-block;"></div> kein Wert (NA)
-        </div>"""
+        </div>
+        """
         return color_fn, legend
 
 # =========================================================
@@ -377,6 +364,11 @@ def get_color_and_legend(variable):
 # =========================================================
 
 def get_stufen_fuer_variable(var):
+    """
+    Gibt eine Liste von (schwelle, farbe, label) zurück,
+    die den möglichen diskreten Werten der Variable entsprechen.
+    Für kontinuierliche Variablen werden ganzzahlige Stufen gebildet.
+    """
     if var in vi_variablen:
         farben = ["#b2182b","#d6604d","#f4a582","#fddbc7","#92c5de","#4393c3","#2166ac"]
         return [(i+1, farben[i], str(i+1)) for i in range(7)]
@@ -385,12 +377,6 @@ def get_stufen_fuer_variable(var):
     else:
         farben = ["#d73027","#fc8d59","#fee08b","#91cf60","#1a9850"]
         return [(i+1, farben[i], str(i+1)) for i in range(5)]
-
-def stufe_fuer_wert(v, stufen):
-    for schwelle, _, _ in stufen:
-        if v <= schwelle:
-            return schwelle
-    return stufen[-1][0]
 
 # =========================================================
 # SIDEBAR
@@ -415,15 +401,17 @@ st.sidebar.markdown(f"**Filter: {variable}**")
 
 alle_stufen = get_stufen_fuer_variable(variable)
 
+# "Alle auswählen / Alle abwählen" Toggle
 alle_an = st.sidebar.checkbox("Alle Stufen anzeigen", value=True, key="filter_alle")
 
 aktive_stufen = set()
 for schwelle, farbe, label in alle_stufen:
+    checked = alle_an  # Standardmäßig an wenn "Alle" aktiviert
     cb = st.sidebar.checkbox(
         label,
-        value=alle_an,
+        value=checked,
         key=f"filter_{variable}_{schwelle}",
-        disabled=alle_an
+        disabled=alle_an  # gesperrt wenn "Alle" aktiv
     )
     if alle_an or cb:
         aktive_stufen.add(schwelle)
@@ -456,21 +444,30 @@ with tab1:
     coords_mask = (
         df["latitude"].notna() &
         df["longitude"].notna() &
-        (df["latitude"]  >= 46.0) &
-        (df["latitude"]  <= 49.5) &
-        (df["longitude"] >=  9.0) &
-        (df["longitude"] <= 18.5)
+        (df["latitude"]  > 46)   &
+        (df["latitude"]  < 49.5) &
+        (df["longitude"] > 9)    &
+        (df["longitude"] < 18.5)
     )
     df_map = df[coords_mask].copy()
 
-    # Firmen ohne Koordinaten
-    n_ohne_koordinaten = df["latitude"].isna().sum()
+    # Aufteilen: mit Wert vs. NA
+    map_data_all    = df_map[df_map[variable].notna()].copy()
+    map_data_na     = df_map[df_map[variable].isna()].copy()
 
-    # Aufteilen: mit Wert vs. NA für gewählte Variable
-    map_data_all = df_map[df_map[variable].notna()].copy()
-    map_data_na  = df_map[df_map[variable].isna()].copy()
+    # --------------------------------------------------
+    # FILTER: Nur Firmen anzeigen, deren gerundeter Wert
+    # in den aktiven Stufen ist.
+    # Für kontinuierliche Variablen: round auf nächste ganze Zahl,
+    # dann prüfen ob diese Zahl als Schwelle in aktive_stufen ist.
+    # --------------------------------------------------
+    def stufe_fuer_wert(v, stufen):
+        """Gibt die Schwelle zurück, der der Wert v zugeordnet wird."""
+        for schwelle, _, _ in stufen:
+            if v <= schwelle:
+                return schwelle
+        return stufen[-1][0]
 
-    # Filter anwenden
     if not alle_an:
         map_data_colored = map_data_all[
             map_data_all[variable].apply(
@@ -480,43 +477,28 @@ with tab1:
     else:
         map_data_colored = map_data_all.copy()
 
-    # Anzahl aktuell sichtbarer Firmen
-    n_sichtbar_farbig = len(map_data_colored)
-    n_sichtbar_na     = len(map_data_na) if show_na else 0
-    n_sichtbar_gesamt = n_sichtbar_farbig + n_sichtbar_na
+    # Metriken
+    col_info1, col_info2, col_info3 = st.columns(3)
+    col_info1.metric("Firmen auf Karte (gesamt)", len(df_map))
+    col_info2.metric(f"Sichtbar nach Filter", len(map_data_colored) + (len(map_data_na) if show_na else 0))
+    col_info3.metric("Firmen ohne Koordinaten (NA)", df["latitude"].isna().sum())
 
-    # --------------------------------------------------
-    # METRIKEN — ganz oben, live aktualisiert
-    # --------------------------------------------------
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("🗺️ Firmen gesamt auf Karte",        len(df_map))
-    m2.metric("✅ Aktuell angezeigte Firmen",        n_sichtbar_gesamt)
-    m3.metric(f"🎨 Davon mit Wert ({variable[:20]}…)" if len(variable) > 20 else f"🎨 Davon mit Wert",
-              n_sichtbar_farbig)
-    m4.metric("❌ Ohne Koordinaten (nicht kartierbar)", n_ohne_koordinaten)
-
-    st.markdown("---")
-
-    # --------------------------------------------------
-    # KARTE
-    # --------------------------------------------------
     m = folium.Map(location=[47.6, 14.5], zoom_start=7, tiles="OpenStreetMap")
 
+    # Farb-Funktion und Legende
     get_color, legend_html = get_color_and_legend(variable)
 
-    # Marker — farbig (gefilterte Firmen mit Wert)
-    for idx, row in map_data_colored.iterrows():
+    # --------------------------------------------------
+    # MARKER — farbig (gefilterte Firmen mit Wert)
+    # --------------------------------------------------
+
+    for _, row in map_data_colored.iterrows():
         firma = row["Zugehörigkeit"] if "Zugehörigkeit" in row and pd.notna(row["Zugehörigkeit"]) else "k.A."
-        popup_text = (
-            f"<b>Firma:</b> {firma}<br>"
-            f"<b>Variable:</b> {variable}<br>"
-            f"<b>Wert:</b> {round(row[variable], 2)}<br>"
-            f"<hr style='margin:6px 0'>"
-            f"<small style='color:#555'>Zeilen-ID: {idx}</small><br>"
-            f"<a href='#datensatz_{idx}' "
-            f"style='font-size:12px;color:#1a73e8;text-decoration:none;font-weight:bold;'>"
-            f"📋 Zum Datensatz springen</a>"
-        )
+        popup = f"""
+        <b>Firma:</b> {firma}<br>
+        <b>Variable:</b> {variable}<br>
+        <b>Wert:</b> {round(row[variable], 2)}
+        """
         folium.CircleMarker(
             location=[row["latitude"], row["longitude"]],
             radius=radius,
@@ -524,23 +506,21 @@ with tab1:
             fill=True,
             fill_color=get_color(row[variable]),
             fill_opacity=0.9,
-            popup=folium.Popup(popup_text, max_width=280)
+            popup=folium.Popup(popup, max_width=250)
         ).add_to(m)
 
-    # Marker — grau (NA) — nur wenn show_na aktiv
+    # --------------------------------------------------
+    # MARKER — grau (NA) — nur wenn show_na aktiv
+    # --------------------------------------------------
+
     if show_na:
-        for idx, row in map_data_na.iterrows():
+        for _, row in map_data_na.iterrows():
             firma = row["Zugehörigkeit"] if "Zugehörigkeit" in row and pd.notna(row["Zugehörigkeit"]) else "k.A."
-            popup_text = (
-                f"<b>Firma:</b> {firma}<br>"
-                f"<b>Variable:</b> {variable}<br>"
-                f"<b>Wert:</b> kein Wert (NA)<br>"
-                f"<hr style='margin:6px 0'>"
-                f"<small style='color:#555'>Zeilen-ID: {idx}</small><br>"
-                f"<a href='#datensatz_{idx}' "
-                f"style='font-size:12px;color:#1a73e8;text-decoration:none;font-weight:bold;'>"
-                f"📋 Zum Datensatz springen</a>"
-            )
+            popup = f"""
+            <b>Firma:</b> {firma}<br>
+            <b>Variable:</b> {variable}<br>
+            <b>Wert:</b> kein Wert (NA)
+            """
             folium.CircleMarker(
                 location=[row["latitude"], row["longitude"]],
                 radius=radius,
@@ -548,32 +528,11 @@ with tab1:
                 fill=True,
                 fill_color="#aaaaaa",
                 fill_opacity=0.7,
-                popup=folium.Popup(popup_text, max_width=280)
+                popup=folium.Popup(popup, max_width=250)
             ).add_to(m)
 
     m.get_root().html.add_child(folium.Element(legend_html))
-
-    # st_folium gibt last_object_clicked_popup zurück wenn ein Marker angeklickt wird
-    karten_klick = st_folium(m, width=1400, height=850, returned_objects=["last_object_clicked_popup"])
-
-    # Geklickten Index aus Popup-Text extrahieren und in session_state speichern
-    if karten_klick and karten_klick.get("last_object_clicked_popup"):
-        popup_inhalt = karten_klick["last_object_clicked_popup"]
-        # Zeilen-ID aus Popup-Text parsen
-        import re
-        treffer = re.search(r"Zeilen-ID:\s*(\d+)", popup_inhalt)
-        if treffer:
-            st.session_state["angeklickte_firma_idx"] = int(treffer.group(1))
-
-    # Hinweis wenn eine Firma angeklickt wurde
-    if "angeklickte_firma_idx" in st.session_state:
-        idx_sel = st.session_state["angeklickte_firma_idx"]
-        firma_sel = df.loc[idx_sel, "Zugehörigkeit"] if "Zugehörigkeit" in df.columns and pd.notna(df.loc[idx_sel, "Zugehörigkeit"]) else "k.A."
-        st.info(
-            f"📌 Zuletzt angeklickt: **{firma_sel}** (Zeile {idx_sel}) — "
-            f"Tab **'Datentabelle'** öffnen um die Zeile hervorzuheben.",
-            icon=None
-        )
+    st_folium(m, width=1400, height=850)
 
 # =========================================================
 # TAB 2 — DESKRIPTIVE STATISTIK
@@ -595,8 +554,8 @@ with tab2:
         desc_df = df[desc_vars].describe().T
         desc_df["missing"]   = df[desc_vars].isna().sum().values
         desc_df["missing_%"] = (df[desc_vars].isna().mean() * 100).round(1).values
-        desc_df["Schiefe"]   = df[desc_vars].skew()
-        desc_df["Wölbung"]   = df[desc_vars].kurtosis()
+        desc_df["Schiefe"] = df[desc_vars].skew()
+        desc_df["Wölbung"] = df[desc_vars].kurtosis()
         desc_df = desc_df.drop(columns=["min", "25%", "75%"])
 
         desc_df = desc_df.rename(columns={
@@ -644,10 +603,10 @@ with tab3:
 
     if len(corr_data) > 2:
         corr_val, pval = pearsonr(corr_data[corr_x], corr_data[corr_y])
-        mc1, mc2, mc3 = st.columns(3)
-        mc1.metric("Pearson r", round(corr_val, 3))
-        mc2.metric("p-Wert",    round(pval, 5))
-        mc3.metric("N",         len(corr_data))
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Pearson r", round(corr_val, 3))
+        m2.metric("p-Wert",    round(pval, 5))
+        m3.metric("N",         len(corr_data))
 
         fig_scatter = px.scatter(
             corr_data, x=corr_x, y=corr_y,
@@ -670,6 +629,7 @@ with tab3:
 
         corr_matrix = df[heatmap_vars].corr(method="pearson")
 
+        # Grün = +1, Rot = -1, X-Achse oben
         fig_heat = px.imshow(
             corr_matrix,
             text_auto=".2f",
@@ -678,8 +638,16 @@ with tab3:
             title="Pearson-Korrelationsmatrix",
             aspect="auto"
         )
-        fig_heat.update_layout(height=600, xaxis=dict(side="top"))
+        fig_heat.update_layout(
+            height=600,
+            xaxis=dict(side="top")
+        )
         st.plotly_chart(fig_heat, use_container_width=True)
+
+        # --------------------------------------------------
+        # p-Wert Tabelle — via px.imshow (gleiche Ausrichtung
+        # wie Korrelationsmatrix oben)
+        # --------------------------------------------------
 
         st.markdown("**Signifikanztabelle (p-Werte)**")
 
@@ -696,6 +664,7 @@ with tab3:
                     else:
                         pval_matrix.loc[v1, v2] = np.nan
 
+        # Gleiche Darstellung wie Korrelationsmatrix: px.imshow mit x-Achse oben
         fig_pval = px.imshow(
             pval_matrix.astype(float),
             text_auto=".4f",
@@ -761,7 +730,10 @@ with tab4:
                 f"F-p = {round(model.f_pvalue, 5)}**"
             )
 
+            # --------------------------------------------------
             # Standardisierte Koeffizienten (Beta)
+            # z-standardisierte X und Y → OLS erneut fitten
+            # --------------------------------------------------
             reg_data_std = reg_data.copy()
             for col in [reg_y] + reg_x:
                 col_std = reg_data_std[col].std()
@@ -773,18 +745,19 @@ with tab4:
             X_std       = sm.add_constant(reg_data_std[reg_x])
             y_std       = reg_data_std[reg_y]
             model_std   = sm.OLS(y_std, X_std).fit()
-            beta_series = model_std.params
+            beta_series = model_std.params  # standardisierte Koeffizienten
 
             coef_df = pd.DataFrame({
-                "Koeffizient": model.params,
-                "Beta (std.)": beta_series,
-                "Std.-Fehler": model.bse,
-                "t-Wert":      model.tvalues,
-                "p-Wert":      model.pvalues,
-                "CI 2.5%":     model.conf_int()[0],
-                "CI 97.5%":    model.conf_int()[1]
+                "Koeffizient":  model.params,
+                "Beta (std.)":  beta_series,
+                "Std.-Fehler":  model.bse,
+                "t-Wert":       model.tvalues,
+                "p-Wert":       model.pvalues,
+                "CI 2.5%":      model.conf_int()[0],
+                "CI 97.5%":     model.conf_int()[1]
             }).round(4)
 
+            # Farbkodierung p-Werte ohne matplotlib
             pval_colors = []
             for p in coef_df["p-Wert"]:
                 if p < 0.001:  pval_colors.append("#c6efce")
@@ -938,44 +911,4 @@ with tab5:
 with tab6:
 
     st.subheader("Datentabelle")
-
-    # Wenn eine Firma auf der Karte angeklickt wurde → Zeile hervorheben
-    if "angeklickte_firma_idx" in st.session_state:
-        idx_sel = st.session_state["angeklickte_firma_idx"]
-
-        if idx_sel in df.index:
-            firma_sel = (
-                df.loc[idx_sel, "Zugehörigkeit"]
-                if "Zugehörigkeit" in df.columns and pd.notna(df.loc[idx_sel, "Zugehörigkeit"])
-                else "k.A."
-            )
-
-            st.success(
-                f"📌 Hervorgehobene Firma: **{firma_sel}** — Zeile **{idx_sel}** "
-                f"(oben in der Tabelle angezeigt)"
-            )
-
-            # Ausgewählte Zeile oben, Rest darunter
-            zeile_sel  = df.loc[[idx_sel]]
-            rest_df    = df.drop(index=idx_sel)
-            df_anzeige = pd.concat([zeile_sel, rest_df])
-
-            # Styling: ausgewählte Zeile gelb hinterlegen
-            def highlight_first(row):
-                if row.name == idx_sel:
-                    return ["background-color: #fff9c4; font-weight: bold"] * len(row)
-                return [""] * len(row)
-
-            st.dataframe(
-                df_anzeige.style.apply(highlight_first, axis=1),
-                use_container_width=True,
-                height=900
-            )
-
-            if st.button("🔄 Markierung zurücksetzen", key="reset_marker"):
-                del st.session_state["angeklickte_firma_idx"]
-                st.rerun()
-        else:
-            st.dataframe(df, use_container_width=True, height=900)
-    else:
-        st.dataframe(df, use_container_width=True, height=900)
+    st.dataframe(df, use_container_width=True, height=900)

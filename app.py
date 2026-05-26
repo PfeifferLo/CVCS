@@ -18,14 +18,6 @@ from folium.plugins import HeatMap, MarkerCluster
 import gspread
 from google.oauth2.service_account import Credentials
 
-# Clustering
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans, AgglomerativeClustering, DBSCAN
-from sklearn.decomposition import PCA
-from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
-from sklearn.impute import SimpleImputer
-import scipy.cluster.hierarchy as sch
-
 # =========================================================
 # PAGE CONFIG
 # =========================================================
@@ -502,7 +494,7 @@ else:
 # TABS
 # =========================================================
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "Karte",
     "Deskriptive Statistik",
     "Korrelationen & Heatmap",
@@ -510,7 +502,6 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "Fehlende Werte",
     "Datentabelle",
     "Hotspot-Analyse",
-    "🔵 Clusteranalyse",
 ])
 
 # =========================================================
@@ -528,23 +519,29 @@ def stufe_fuer_wert(v, stufen):
 # =========================================================
 
 def apply_extended_filters(df_in):
+    """Wendet Firmengröße, VI, Branche, IQD, Personenkennzeichen-Filter an."""
     mask = pd.Series(True, index=df_in.index)
 
+    # Firmengröße
     if not alle_groessen_an and "Firmengröße" in df_in.columns:
         mask &= df_in["Firmengröße"].apply(
             lambda v: (pd.isna(v) or round(v) in aktive_groessen)
         )
 
+    # VI-Filter
     if vi_filter_var != "(kein Filter)" and vi_filter_var in df_in.columns:
         mask &= df_in[vi_filter_var].apply(
             lambda v: pd.isna(v) or (vi_filter_min <= v <= vi_filter_max)
         )
 
+
+    # IQD
     if iqd_col and aktive_iqd is not None and not alle_iqd_an:
         mask &= df_in[iqd_col].apply(
             lambda v: pd.isna(v) or v in aktive_iqd
         )
 
+    # Personenkennzeichen
     if person_col and aktive_person is not None and not alle_person_an:
         mask &= df_in[person_col].apply(
             lambda v: pd.isna(v) or v in aktive_person
@@ -557,6 +554,7 @@ def apply_extended_filters(df_in):
 # =========================================================
 
 def build_popup(row, variable):
+    """Erstellt HTML-Popup mit allen gefilterten und relevanten Infos."""
     firma = row.get("Zugehörigkeit", "k.A.")
     if pd.isna(firma):
         firma = "k.A."
@@ -564,27 +562,33 @@ def build_popup(row, variable):
     val = row.get(variable, np.nan)
     val_str = str(round(val, 2)) if pd.notna(val) else "kein Wert (NA)"
 
+    # Basis-Infos
     lines = [
         f"<b>Firma:</b> {firma}",
         f"<b>Variable:</b> {variable}",
         f"<b>Wert:</b> {val_str}",
     ]
 
+    # Firmengröße
     groesse_map = {1: "1–9 MA", 2: "10–49 MA", 3: "50–249 MA", 4: "250–499 MA", 5: "500+ MA"}
     if "Firmengröße" in row and pd.notna(row["Firmengröße"]):
         lines.append(f"<b>Firmengröße:</b> {groesse_map.get(int(round(row['Firmengröße'])), str(row['Firmengröße']))}")
 
+    # Firmenalter
     alter_map = {1: "< 5 Jahre", 2: "5–9 Jahre", 3: "10–49 Jahre", 4: "50+ Jahre"}
     if "Firmenalter" in row and pd.notna(row["Firmenalter"]):
         lines.append(f"<b>Firmenalter:</b> {alter_map.get(int(round(row['Firmenalter'])), str(row['Firmenalter']))}")
 
+    # VI-Werte
     for vi in ["VI_Mittelwert", "VI_Closing", "VI_Slowing"]:
         if vi in row and pd.notna(row[vi]):
             lines.append(f"<b>{vi}:</b> {round(row[vi], 2)}")
 
+    # IQD-Gruppe
     if iqd_col and iqd_col in row and pd.notna(row[iqd_col]):
         lines.append(f"<b>IQD-Gruppe:</b> {row[iqd_col]}")
 
+    # Personenkennzeichen
     if person_col and person_col in row and pd.notna(row[person_col]):
         lines.append(f"<b>Personenkennzeichen:</b> {row[person_col]}")
 
@@ -608,6 +612,7 @@ with tab1:
     )
     df_map = df[coords_mask].copy()
 
+    # Erweiterte Filter anwenden
     df_map_filtered = apply_extended_filters(df_map)
 
     map_data_all    = df_map_filtered[df_map_filtered[variable].notna()].copy()
@@ -698,12 +703,14 @@ with tab7:
             key="hotspot_radius"
         )
 
+    # Blur & Intensität
     col_hs4, col_hs5 = st.columns(2)
     with col_hs4:
         hotspot_blur = st.slider("Blur", 5, 50, 15, key="hotspot_blur")
     with col_hs5:
         hotspot_min_opacity = st.slider("Min. Deckkraft", 0.0, 1.0, 0.3, step=0.05, key="hotspot_opacity")
 
+    # Schwellenwert-Filter für Hotspot-Analyse
     st.markdown("**Schwellenwert-Filter** (nur Firmen mit Wert ≥ Schwelle einbeziehen)")
     col_hs6, col_hs7 = st.columns(2)
     with col_hs6:
@@ -711,6 +718,7 @@ with tab7:
     with col_hs7:
         hs_threshold = st.slider("Mindestwert", 1.0, 7.0, 3.5, step=0.1, key="hs_threshold_val", disabled=not hs_use_threshold)
 
+    # Daten vorbereiten
     coords_mask_hs = (
         df["latitude"].notna() &
         df["longitude"].notna() &
@@ -727,6 +735,7 @@ with tab7:
 
     st.markdown(f"**Firmen in Analyse:** {len(df_hs_var)}")
 
+    # Statistik-Kacheln
     if len(df_hs_var) > 0:
         hs_mean  = df_hs_var[hotspot_var].mean()
         hs_med   = df_hs_var[hotspot_var].median()
@@ -737,10 +746,12 @@ with tab7:
         chs2.metric("Median", round(hs_med, 2))
         chs3.metric(f"Firmen ≥ Mittelwert", hs_high)
 
+    # Karte aufbauen
     m_hs = folium.Map(location=[47.6, 14.5], zoom_start=7, tiles="CartoDB positron")
 
     if len(df_hs_var) > 0:
 
+        # Normalisierung der Werte auf 0–1 für Heatmap-Gewicht
         val_min = df_hs_var[hotspot_var].min()
         val_max = df_hs_var[hotspot_var].max()
         val_range = val_max - val_min if val_max != val_min else 1.0
@@ -748,60 +759,105 @@ with tab7:
         df_hs_var = df_hs_var.copy()
         df_hs_var["_weight"] = (df_hs_var[hotspot_var] - val_min) / val_range
 
+        # Farbfunktion für Cluster-Marker
         hs_get_color, _ = get_color_and_legend(hotspot_var)
 
         if hotspot_mode == "Heatmap (Dichte)":
             heat_data = df_hs_var[["latitude", "longitude"]].values.tolist()
-            HeatMap(heat_data, radius=hotspot_radius, blur=hotspot_blur, min_opacity=hotspot_min_opacity).add_to(m_hs)
+            HeatMap(
+                heat_data,
+                radius=hotspot_radius,
+                blur=hotspot_blur,
+                min_opacity=hotspot_min_opacity
+            ).add_to(m_hs)
 
         elif hotspot_mode == "Heatmap (gewichtet nach Wert)":
-            heat_data = [[row["latitude"], row["longitude"], row["_weight"]] for _, row in df_hs_var.iterrows()]
-            HeatMap(heat_data, radius=hotspot_radius, blur=hotspot_blur, min_opacity=hotspot_min_opacity,
-                    gradient={0.0: "blue", 0.4: "lime", 0.65: "yellow", 1.0: "red"}).add_to(m_hs)
+            heat_data = [
+                [row["latitude"], row["longitude"], row["_weight"]]
+                for _, row in df_hs_var.iterrows()
+            ]
+            HeatMap(
+                heat_data,
+                radius=hotspot_radius,
+                blur=hotspot_blur,
+                min_opacity=hotspot_min_opacity,
+                gradient={0.0: "blue", 0.4: "lime", 0.65: "yellow", 1.0: "red"}
+            ).add_to(m_hs)
 
         elif hotspot_mode == "Cluster-Marker":
-            cluster = MarkerCluster(options={"spiderfyOnMaxZoom": True, "showCoverageOnHover": False, "zoomToBoundsOnClick": True}).add_to(m_hs)
+            cluster = MarkerCluster(
+                options={
+                    "spiderfyOnMaxZoom": True,
+                    "showCoverageOnHover": False,
+                    "zoomToBoundsOnClick": True
+                }
+            ).add_to(m_hs)
             for _, row in df_hs_var.iterrows():
                 popup_html = build_popup(row, hotspot_var)
                 folium.CircleMarker(
-                    location=[row["latitude"], row["longitude"]], radius=8,
-                    color="black", weight=1, fill=True,
-                    fill_color=hs_get_color(row[hotspot_var]), fill_opacity=0.9,
+                    location=[row["latitude"], row["longitude"]],
+                    radius=8,
+                    color="black", weight=1,
+                    fill=True,
+                    fill_color=hs_get_color(row[hotspot_var]),
+                    fill_opacity=0.9,
                     popup=folium.Popup(popup_html, max_width=300)
                 ).add_to(cluster)
 
         elif hotspot_mode == "Cluster + Heatmap":
-            heat_data = [[row["latitude"], row["longitude"], row["_weight"]] for _, row in df_hs_var.iterrows()]
-            HeatMap(heat_data, radius=hotspot_radius, blur=hotspot_blur, min_opacity=hotspot_min_opacity,
-                    gradient={0.0: "blue", 0.4: "lime", 0.65: "yellow", 1.0: "red"}).add_to(m_hs)
-            cluster = MarkerCluster(options={"showCoverageOnHover": False}).add_to(m_hs)
+            # Heatmap layer
+            heat_data = [
+                [row["latitude"], row["longitude"], row["_weight"]]
+                for _, row in df_hs_var.iterrows()
+            ]
+            HeatMap(
+                heat_data,
+                radius=hotspot_radius,
+                blur=hotspot_blur,
+                min_opacity=hotspot_min_opacity,
+                gradient={0.0: "blue", 0.4: "lime", 0.65: "yellow", 1.0: "red"}
+            ).add_to(m_hs)
+            # Cluster layer
+            cluster = MarkerCluster(
+                options={"showCoverageOnHover": False}
+            ).add_to(m_hs)
             for _, row in df_hs_var.iterrows():
                 popup_html = build_popup(row, hotspot_var)
                 folium.CircleMarker(
-                    location=[row["latitude"], row["longitude"]], radius=6,
-                    color="black", weight=1, fill=True,
-                    fill_color=hs_get_color(row[hotspot_var]), fill_opacity=0.85,
+                    location=[row["latitude"], row["longitude"]],
+                    radius=6,
+                    color="black", weight=1,
+                    fill=True,
+                    fill_color=hs_get_color(row[hotspot_var]),
+                    fill_opacity=0.85,
                     popup=folium.Popup(popup_html, max_width=300)
                 ).add_to(cluster)
 
     else:
         st.warning("Keine Daten nach Filter verfügbar.")
 
+    # Legende für Hotspot-Karte
     _, hs_legend_html = get_color_and_legend(hotspot_var)
     m_hs.get_root().html.add_child(folium.Element(hs_legend_html))
+
     st_folium(m_hs, width=1400, height=800)
 
+    # Verteilung der Werte als Balkenchart unter der Karte
     if len(df_hs_var) > 0:
         st.markdown("---")
         st.subheader("Werteverteilung in der gefilterten Auswahl")
 
         fig_hs_hist = px.histogram(
-            df_hs_var[hotspot_var].dropna(), x=hotspot_var, nbins=20, marginal="box",
+            df_hs_var[hotspot_var].dropna(),
+            x=hotspot_var,
+            nbins=20,
+            marginal="box",
             title=f"Verteilung: {hotspot_var} (Hotspot-Auswahl)",
             color_discrete_sequence=["#e31a1c"]
         )
         st.plotly_chart(fig_hs_hist, use_container_width=True)
 
+        # Top-10-Firmen nach Wert
         st.markdown(f"**Top 10 Firmen nach {hotspot_var}**")
         top_cols = ["Zugehörigkeit", hotspot_var]
         if iqd_col:
@@ -849,10 +905,15 @@ with tab2:
         st.markdown("---")
         st.subheader("Histogramm / Verteilung")
 
-        hist_var = st.selectbox("Variable für Histogramm", desc_vars, key="hist_var")
+        hist_var = st.selectbox(
+            "Variable für Histogramm",
+            desc_vars,
+            key="hist_var"
+        )
 
         fig_hist = px.histogram(
-            df[hist_var].dropna(), x=hist_var, nbins=20, marginal="box",
+            df[hist_var].dropna(),
+            x=hist_var, nbins=20, marginal="box",
             title=f"Verteilung: {hist_var}",
             color_discrete_sequence=["#4393c3"]
         )
@@ -882,7 +943,8 @@ with tab3:
         m3.metric("N",         len(corr_data))
 
         fig_scatter = px.scatter(
-            corr_data, x=corr_x, y=corr_y, trendline="ols",
+            corr_data, x=corr_x, y=corr_y,
+            trendline="ols",
             title=f"Streudiagramm: {corr_x} vs. {corr_y}"
         )
         st.plotly_chart(fig_scatter, use_container_width=True)
@@ -902,10 +964,17 @@ with tab3:
         corr_matrix = df[heatmap_vars].corr(method="pearson")
 
         fig_heat = px.imshow(
-            corr_matrix, text_auto=".2f", color_continuous_scale="RdYlGn",
-            zmin=-1, zmax=1, title="Pearson-Korrelationsmatrix", aspect="auto"
+            corr_matrix,
+            text_auto=".2f",
+            color_continuous_scale="RdYlGn",
+            zmin=-1, zmax=1,
+            title="Pearson-Korrelationsmatrix",
+            aspect="auto"
         )
-        fig_heat.update_layout(height=600, xaxis=dict(side="top"))
+        fig_heat.update_layout(
+            height=600,
+            xaxis=dict(side="top")
+        )
         st.plotly_chart(fig_heat, use_container_width=True)
 
         st.markdown("**Signifikanztabelle (p-Werte)**")
@@ -924,12 +993,24 @@ with tab3:
                         pval_matrix.loc[v1, v2] = np.nan
 
         fig_pval = px.imshow(
-            pval_matrix.astype(float), text_auto=".4f",
-            color_continuous_scale=[[0.000, "#1a9850"],[0.010, "#91cf60"],[0.050, "#fee08b"],[0.100, "#fc8d59"],[1.000, "#d73027"]],
+            pval_matrix.astype(float),
+            text_auto=".4f",
+            color_continuous_scale=[
+                [0.000, "#1a9850"],
+                [0.010, "#91cf60"],
+                [0.050, "#fee08b"],
+                [0.100, "#fc8d59"],
+                [1.000, "#d73027"],
+            ],
             zmin=0, zmax=1,
-            title="p-Werte (grün = signifikant, rot = nicht signifikant)", aspect="auto"
+            title="p-Werte (grün = signifikant, rot = nicht signifikant)",
+            aspect="auto"
         )
-        fig_pval.update_layout(height=600, xaxis=dict(side="top"), coloraxis_colorbar=dict(title="p-Wert"))
+        fig_pval.update_layout(
+            height=600,
+            xaxis=dict(side="top"),
+            coloraxis_colorbar=dict(title="p-Wert")
+        )
         st.plotly_chart(fig_pval, use_container_width=True)
 
     else:
@@ -953,7 +1034,10 @@ with tab4:
     reg_x_options = [v for v in alle_variablen if v != reg_y]
 
     reg_x = st.multiselect(
-        "Prädiktoren (X)", reg_x_options, default=reg_x_options[:3], key="reg_x"
+        "Prädiktoren (X)",
+        reg_x_options,
+        default=reg_x_options[:3],
+        key="reg_x"
     )
 
     if reg_x:
@@ -981,9 +1065,9 @@ with tab4:
                 else:
                     reg_data_std[col] = 0.0
 
-            X_std     = sm.add_constant(reg_data_std[reg_x])
-            y_std     = reg_data_std[reg_y]
-            model_std = sm.OLS(y_std, X_std).fit()
+            X_std       = sm.add_constant(reg_data_std[reg_x])
+            y_std       = reg_data_std[reg_y]
+            model_std   = sm.OLS(y_std, X_std).fit()
             beta_series = model_std.params
 
             coef_df = pd.DataFrame({
@@ -1007,22 +1091,33 @@ with tab4:
             fig_coef_table = go.Figure(data=[go.Table(
                 header=dict(
                     values=["Prädiktor"] + list(coef_df.columns),
-                    fill_color="#4393c3", font=dict(color="white", size=12), align="center"
+                    fill_color="#4393c3",
+                    font=dict(color="white", size=12),
+                    align="center"
                 ),
                 cells=dict(
                     values=[
-                        coef_df.index.tolist(), coef_df["Koeffizient"].tolist(),
-                        coef_df["Beta (std.)"].tolist(), coef_df["Std.-Fehler"].tolist(),
-                        coef_df["t-Wert"].tolist(), coef_df["p-Wert"].tolist(),
-                        coef_df["CI 2.5%"].tolist(), coef_df["CI 97.5%"].tolist(),
+                        coef_df.index.tolist(),
+                        coef_df["Koeffizient"].tolist(),
+                        coef_df["Beta (std.)"].tolist(),
+                        coef_df["Std.-Fehler"].tolist(),
+                        coef_df["t-Wert"].tolist(),
+                        coef_df["p-Wert"].tolist(),
+                        coef_df["CI 2.5%"].tolist(),
+                        coef_df["CI 97.5%"].tolist(),
                     ],
                     fill_color=[
-                        ["#f5f5f5"] * len(coef_df), ["#f5f5f5"] * len(coef_df),
-                        ["#f5f5f5"] * len(coef_df), ["#f5f5f5"] * len(coef_df),
-                        ["#f5f5f5"] * len(coef_df), pval_colors,
-                        ["#f5f5f5"] * len(coef_df), ["#f5f5f5"] * len(coef_df),
+                        ["#f5f5f5"] * len(coef_df),
+                        ["#f5f5f5"] * len(coef_df),
+                        ["#f5f5f5"] * len(coef_df),
+                        ["#f5f5f5"] * len(coef_df),
+                        ["#f5f5f5"] * len(coef_df),
+                        pval_colors,
+                        ["#f5f5f5"] * len(coef_df),
+                        ["#f5f5f5"] * len(coef_df),
                     ],
-                    align="center", font=dict(size=11)
+                    align="center",
+                    font=dict(size=11)
                 )
             )])
             fig_coef_table.update_layout(
@@ -1033,23 +1128,32 @@ with tab4:
 
             fig_coef = px.bar(
                 coef_df.drop("const", errors="ignore").reset_index(),
-                x="index", y="Koeffizient", error_y="Std.-Fehler",
+                x="index", y="Koeffizient",
+                error_y="Std.-Fehler",
                 title="Regressionskoeffizienten (unstandardisiert)",
-                labels={"index": "Prädiktor"}, color="Koeffizient", color_continuous_scale="RdBu"
+                labels={"index": "Prädiktor"},
+                color="Koeffizient",
+                color_continuous_scale="RdBu"
             )
             fig_coef.add_hline(y=0, line_dash="dash", line_color="black")
             st.plotly_chart(fig_coef, use_container_width=True)
 
             beta_plot_df = coef_df.drop("const", errors="ignore").reset_index()
             fig_beta = px.bar(
-                beta_plot_df, x="index", y="Beta (std.)",
+                beta_plot_df,
+                x="index", y="Beta (std.)",
                 title="Standardisierte Regressionskoeffizienten (Beta)",
-                labels={"index": "Prädiktor"}, color="Beta (std.)", color_continuous_scale="RdBu"
+                labels={"index": "Prädiktor"},
+                color="Beta (std.)",
+                color_continuous_scale="RdBu"
             )
             fig_beta.add_hline(y=0, line_dash="dash", line_color="black")
             st.plotly_chart(fig_beta, use_container_width=True)
 
-            resid_df = pd.DataFrame({"Vorhergesagt": model.fittedvalues, "Residuen": model.resid})
+            resid_df = pd.DataFrame({
+                "Vorhergesagt": model.fittedvalues,
+                "Residuen":     model.resid
+            })
             fig_resid = px.scatter(
                 resid_df, x="Vorhergesagt", y="Residuen",
                 title="Residuen vs. Vorhergesagte Werte",
@@ -1086,9 +1190,12 @@ with tab5:
     st.dataframe(missing_df, use_container_width=True)
 
     fig_miss = px.bar(
-        missing_df, x="Variable", y="Fehlend (%)",
+        missing_df,
+        x="Variable", y="Fehlend (%)",
         title="Fehlende Werte pro Variable (%)",
-        color="Fehlend (%)", color_continuous_scale="Reds", text="Fehlend (%)"
+        color="Fehlend (%)",
+        color_continuous_scale="Reds",
+        text="Fehlend (%)"
     )
     fig_miss.update_traces(texttemplate="%{text}%", textposition="outside")
     fig_miss.update_layout(xaxis_tickangle=-45, height=500)
@@ -1098,7 +1205,10 @@ with tab5:
     st.subheader("Fehlende-Werte-Muster (Heatmap)")
 
     miss_heatmap_vars = st.multiselect(
-        "Variablen für Muster-Heatmap", alle_variablen, default=alle_variablen[:10], key="miss_heatmap_vars"
+        "Variablen für Muster-Heatmap",
+        alle_variablen,
+        default=alle_variablen[:10],
+        key="miss_heatmap_vars"
     )
 
     if miss_heatmap_vars:
@@ -1121,620 +1231,3 @@ with tab6:
 
     st.subheader("Datentabelle")
     st.dataframe(df, use_container_width=True, height=900)
-
-
-# =========================================================
-# TAB 8 — CLUSTERANALYSE  🔵
-# =========================================================
-
-with tab8:
-
-    st.subheader("🔵 Clusteranalyse")
-    st.markdown(
-        "Führe eine Clusteranalyse auf beliebigen Variablen durch. "
-        "Wähle Algorithmus, Variablen und Darstellungsform."
-    )
-
-    # ------------------------------------------------------------------
-    # ABSCHNITT 1 — Einstellungen
-    # ------------------------------------------------------------------
-
-    with st.expander("⚙️ Cluster-Einstellungen", expanded=True):
-
-        cl_col1, cl_col2, cl_col3 = st.columns(3)
-
-        with cl_col1:
-            cl_algo = st.selectbox(
-                "Algorithmus",
-                ["K-Means", "Hierarchisch (Ward)", "Hierarchisch (Complete)", "Hierarchisch (Average)", "DBSCAN"],
-                key="cl_algo"
-            )
-
-        with cl_col2:
-            if cl_algo != "DBSCAN":
-                cl_k = st.slider("Anzahl Cluster (k)", 2, 10, 3, key="cl_k")
-            else:
-                cl_eps = st.slider("DBSCAN: ε (Epsilon)", 0.1, 5.0, 0.5, step=0.05, key="cl_eps")
-                cl_min_samples = st.slider("DBSCAN: min. Samples", 2, 15, 3, key="cl_min_samples")
-
-        with cl_col3:
-            cl_impute = st.selectbox(
-                "Fehlende Werte behandeln",
-                ["Mittelwert (mean)", "Median", "Zeilen entfernen (listwise)"],
-                key="cl_impute"
-            )
-
-        cl_vars = st.multiselect(
-            "Variablen für Clustering auswählen",
-            alle_variablen,
-            default=alle_variablen[:6],
-            key="cl_vars"
-        )
-
-        cl_scale = st.checkbox("Variablen standardisieren (Z-Score)", value=True, key="cl_scale")
-
-    # ------------------------------------------------------------------
-    # DATEN VORBEREITEN
-    # ------------------------------------------------------------------
-
-    if len(cl_vars) < 2:
-        st.info("Bitte mindestens 2 Variablen für die Clusteranalyse auswählen.")
-        st.stop()
-
-    df_cl_raw = df[cl_vars].copy()
-
-    # Imputation
-    if cl_impute == "Zeilen entfernen (listwise)":
-        df_cl_clean = df_cl_raw.dropna()
-        original_idx = df_cl_clean.index
-    else:
-        strategy = "mean" if cl_impute == "Mittelwert (mean)" else "median"
-        imputer = SimpleImputer(strategy=strategy)
-        df_cl_clean = pd.DataFrame(
-            imputer.fit_transform(df_cl_raw),
-            columns=cl_vars,
-            index=df_cl_raw.index
-        )
-        original_idx = df_cl_clean.index
-
-    if len(df_cl_clean) < 3:
-        st.warning("Zu wenige vollständige Fälle für Clusteranalyse (mind. 3 benötigt).")
-        st.stop()
-
-    # Standardisierung
-    X_cl = df_cl_clean.values
-    if cl_scale:
-        scaler = StandardScaler()
-        X_cl_scaled = scaler.fit_transform(X_cl)
-    else:
-        X_cl_scaled = X_cl.copy()
-
-    # ------------------------------------------------------------------
-    # CLUSTERING DURCHFÜHREN
-    # ------------------------------------------------------------------
-
-    if cl_algo == "K-Means":
-        model_cl = KMeans(n_clusters=cl_k, random_state=42, n_init=10)
-        labels = model_cl.fit_predict(X_cl_scaled)
-
-    elif cl_algo in ["Hierarchisch (Ward)", "Hierarchisch (Complete)", "Hierarchisch (Average)"]:
-        linkage_map = {
-            "Hierarchisch (Ward)":     "ward",
-            "Hierarchisch (Complete)": "complete",
-            "Hierarchisch (Average)":  "average"
-        }
-        linkage_method = linkage_map[cl_algo]
-        model_cl = AgglomerativeClustering(n_clusters=cl_k, linkage=linkage_method)
-        labels = model_cl.fit_predict(X_cl_scaled)
-
-    elif cl_algo == "DBSCAN":
-        model_cl = DBSCAN(eps=cl_eps, min_samples=cl_min_samples)
-        labels = model_cl.fit_predict(X_cl_scaled)
-        n_noise = (labels == -1).sum()
-        n_clusters_found = len(set(labels)) - (1 if -1 in labels else 0)
-        st.info(f"DBSCAN: {n_clusters_found} Cluster gefunden | {n_noise} Rauschen-Punkte (Label -1)")
-
-    df_cl_result = df_cl_clean.copy()
-    df_cl_result["Cluster"] = labels.astype(str)
-    df_cl_result["Cluster_int"] = labels
-
-    # ------------------------------------------------------------------
-    # GÜTEMASSE
-    # ------------------------------------------------------------------
-
-    unique_labels = set(labels)
-    valid_labels = [l for l in unique_labels if l != -1]
-
-    if len(valid_labels) >= 2:
-        mask_valid = labels != -1
-        X_valid = X_cl_scaled[mask_valid]
-        labels_valid = labels[mask_valid]
-
-        sil_score = silhouette_score(X_valid, labels_valid) if len(set(labels_valid)) >= 2 else np.nan
-        db_score  = davies_bouldin_score(X_valid, labels_valid) if len(set(labels_valid)) >= 2 else np.nan
-        ch_score  = calinski_harabasz_score(X_valid, labels_valid) if len(set(labels_valid)) >= 2 else np.nan
-
-        gm1, gm2, gm3, gm4 = st.columns(4)
-        gm1.metric("Fälle in Analyse", len(df_cl_clean))
-        gm2.metric("Silhouette Score ↑", round(sil_score, 3) if not np.isnan(sil_score) else "–",
-                   help="Näher an 1 = besser getrennte Cluster")
-        gm3.metric("Davies-Bouldin ↓", round(db_score, 3) if not np.isnan(db_score) else "–",
-                   help="Kleiner = besser")
-        gm4.metric("Calinski-Harabasz ↑", round(ch_score, 1) if not np.isnan(ch_score) else "–",
-                   help="Größer = besser")
-    else:
-        st.warning("Nicht genug Cluster für Gütemasse.")
-
-    st.markdown("---")
-
-    # ------------------------------------------------------------------
-    # VISUALISIERUNGEN — Tabs innerhalb des Cluster-Tabs
-    # ------------------------------------------------------------------
-
-    vis_tab1, vis_tab2, vis_tab3, vis_tab4, vis_tab5, vis_tab6 = st.tabs([
-        "📊 PCA-Plot",
-        "📈 Cluster-Profile",
-        "🌡️ Heatmap",
-        "📦 Boxplots",
-        "🌳 Dendrogramm",
-        "🗺️ Karte",
-    ])
-
-    # --- PCA-PLOT ---
-    with vis_tab1:
-        st.markdown("**PCA-Visualisierung (2D / 3D)**")
-
-        pca_dim = st.radio("Dimensionen", ["2D", "3D"], horizontal=True, key="pca_dim")
-
-        if len(cl_vars) >= 2:
-            n_components = 3 if (pca_dim == "3D" and len(cl_vars) >= 3) else 2
-            pca = PCA(n_components=n_components)
-            pca_coords = pca.fit_transform(X_cl_scaled)
-            explained = pca.explained_variance_ratio_
-
-            pca_df = pd.DataFrame(pca_coords, columns=[f"PC{i+1}" for i in range(n_components)])
-            pca_df["Cluster"] = labels.astype(str)
-
-            # Firmenname hinzufügen wenn vorhanden
-            if "Zugehörigkeit" in df.columns:
-                pca_df["Firma"] = df.loc[original_idx, "Zugehörigkeit"].values
-            else:
-                pca_df["Firma"] = [f"Firma {i}" for i in range(len(pca_df))]
-
-            if pca_dim == "2D":
-                fig_pca = px.scatter(
-                    pca_df, x="PC1", y="PC2",
-                    color="Cluster",
-                    hover_name="Firma",
-                    hover_data={c: True for c in cl_vars if c in df_cl_result.columns},
-                    title=f"PCA 2D — PC1 ({explained[0]*100:.1f}%) & PC2 ({explained[1]*100:.1f}%)",
-                    color_discrete_sequence=px.colors.qualitative.Bold,
-                    height=600
-                )
-                fig_pca.update_traces(marker=dict(size=10, opacity=0.85, line=dict(width=1, color="white")))
-            else:
-                fig_pca = px.scatter_3d(
-                    pca_df, x="PC1", y="PC2", z="PC3",
-                    color="Cluster",
-                    hover_name="Firma",
-                    title=f"PCA 3D — PC1 ({explained[0]*100:.1f}%) / PC2 ({explained[1]*100:.1f}%) / PC3 ({explained[2]*100:.1f}%)",
-                    color_discrete_sequence=px.colors.qualitative.Bold,
-                    height=650
-                )
-                fig_pca.update_traces(marker=dict(size=6, opacity=0.85))
-
-            st.plotly_chart(fig_pca, use_container_width=True)
-
-            # Ladungen / Beitrag der Variablen
-            st.markdown("**Variablenbeiträge zu PC1 & PC2**")
-            loadings = pd.DataFrame(
-                pca.components_[:2].T,
-                index=cl_vars,
-                columns=["PC1", "PC2"]
-            ).round(3)
-            st.dataframe(loadings, use_container_width=True)
-
-            # Elbow + Scree-Plot (nur bei K-Means)
-            if cl_algo == "K-Means":
-                st.markdown("---")
-                st.markdown("**Elbow-Methode zur optimalen k-Bestimmung**")
-                inertias = []
-                k_range = range(2, min(11, len(df_cl_clean)))
-                for k_test in k_range:
-                    km_test = KMeans(n_clusters=k_test, random_state=42, n_init=10)
-                    km_test.fit(X_cl_scaled)
-                    inertias.append(km_test.inertia_)
-
-                fig_elbow = px.line(
-                    x=list(k_range), y=inertias,
-                    markers=True,
-                    title="Elbow-Plot: Inertia vs. k",
-                    labels={"x": "Anzahl Cluster (k)", "y": "Inertia (Within-Cluster Sum of Squares)"},
-                    color_discrete_sequence=["#2171b5"]
-                )
-                fig_elbow.add_vline(x=cl_k, line_dash="dash", line_color="red",
-                                    annotation_text=f"aktuelles k={cl_k}")
-                st.plotly_chart(fig_elbow, use_container_width=True)
-
-                # Silhouette für verschiedene k
-                sil_scores_k = []
-                for k_test in range(2, min(11, len(df_cl_clean))):
-                    km_test = KMeans(n_clusters=k_test, random_state=42, n_init=10)
-                    lab_test = km_test.fit_predict(X_cl_scaled)
-                    if len(set(lab_test)) >= 2:
-                        sil_scores_k.append(silhouette_score(X_cl_scaled, lab_test))
-                    else:
-                        sil_scores_k.append(np.nan)
-
-                fig_sil = px.line(
-                    x=list(range(2, min(11, len(df_cl_clean)))),
-                    y=sil_scores_k,
-                    markers=True,
-                    title="Silhouette Score vs. k",
-                    labels={"x": "k", "y": "Silhouette Score"},
-                    color_discrete_sequence=["#e31a1c"]
-                )
-                fig_sil.add_vline(x=cl_k, line_dash="dash", line_color="orange",
-                                  annotation_text=f"aktuelles k={cl_k}")
-                st.plotly_chart(fig_sil, use_container_width=True)
-
-    # --- CLUSTER-PROFILE ---
-    with vis_tab2:
-        st.markdown("**Cluster-Profile: Mittelwerte pro Cluster**")
-
-        profile_df = df_cl_result.groupby("Cluster")[cl_vars].mean().round(3)
-        profile_df_reset = profile_df.reset_index()
-
-        # Tabelle mit farblicher Hervorhebung
-        st.dataframe(
-            profile_df.style.background_gradient(cmap="RdYlGn", axis=0),
-            use_container_width=True
-        )
-
-        # Radar-Chart
-        st.markdown("**Radar-Diagramm (Cluster-Profile)**")
-
-        # Normalisiere auf 0-1 für Radar
-        profile_norm = profile_df.copy()
-        for col in cl_vars:
-            col_min = profile_norm[col].min()
-            col_max = profile_norm[col].max()
-            if col_max != col_min:
-                profile_norm[col] = (profile_norm[col] - col_min) / (col_max - col_min)
-            else:
-                profile_norm[col] = 0.5
-
-        fig_radar = go.Figure()
-        colors_radar = px.colors.qualitative.Bold
-
-        for i, cluster_label in enumerate(profile_norm.index):
-            values = profile_norm.loc[cluster_label, cl_vars].tolist()
-            values += [values[0]]  # Schließe den Kreis
-            theta = cl_vars + [cl_vars[0]]
-
-            fig_radar.add_trace(go.Scatterpolar(
-                r=values,
-                theta=theta,
-                fill="toself",
-                name=f"Cluster {cluster_label}",
-                line_color=colors_radar[i % len(colors_radar)],
-                opacity=0.7
-            ))
-
-        fig_radar.update_layout(
-            polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
-            showlegend=True,
-            title="Radar-Chart: Normalisierte Cluster-Profile",
-            height=550
-        )
-        st.plotly_chart(fig_radar, use_container_width=True)
-
-        # Balkendiagramm nebeneinander
-        st.markdown("**Balkendiagramm: Mittelwerte pro Variable und Cluster**")
-
-        profile_long = profile_df.reset_index().melt(id_vars="Cluster", var_name="Variable", value_name="Mittelwert")
-
-        fig_bar_profile = px.bar(
-            profile_long,
-            x="Variable", y="Mittelwert", color="Cluster",
-            barmode="group",
-            title="Cluster-Mittelwerte je Variable",
-            color_discrete_sequence=px.colors.qualitative.Bold,
-            height=500
-        )
-        fig_bar_profile.update_layout(xaxis_tickangle=-40)
-        st.plotly_chart(fig_bar_profile, use_container_width=True)
-
-        # Cluster-Größen
-        st.markdown("**Cluster-Größen**")
-        cluster_sizes = df_cl_result["Cluster"].value_counts().reset_index()
-        cluster_sizes.columns = ["Cluster", "Anzahl"]
-
-        fig_pie = px.pie(
-            cluster_sizes,
-            names="Cluster", values="Anzahl",
-            title="Verteilung der Fälle auf Cluster",
-            color_discrete_sequence=px.colors.qualitative.Bold,
-            hole=0.35
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-    # --- HEATMAP ---
-    with vis_tab3:
-        st.markdown("**Heatmap: Cluster × Variablen (Mittelwerte, Z-standardisiert)**")
-
-        profile_z = profile_df.copy()
-        for col in cl_vars:
-            col_mean = profile_z[col].mean()
-            col_std  = profile_z[col].std()
-            if col_std > 0:
-                profile_z[col] = (profile_z[col] - col_mean) / col_std
-            else:
-                profile_z[col] = 0.0
-
-        fig_cl_heat = px.imshow(
-            profile_z,
-            text_auto=".2f",
-            color_continuous_scale="RdBu_r",
-            title="Cluster-Heatmap (Z-standardisierte Mittelwerte)",
-            aspect="auto",
-            labels=dict(x="Variable", y="Cluster", color="z-Wert")
-        )
-        fig_cl_heat.update_layout(height=max(300, len(valid_labels) * 80 + 100))
-        st.plotly_chart(fig_cl_heat, use_container_width=True)
-
-        # Heatmap aller Einzelfälle
-        st.markdown("**Heatmap aller Einzelfälle (sortiert nach Cluster)**")
-        df_sorted = df_cl_result.sort_values("Cluster_int")
-        heatmap_data = df_sorted[cl_vars]
-
-        # Z-standardisieren für bessere Darstellung
-        heatmap_z = (heatmap_data - heatmap_data.mean()) / heatmap_data.std().replace(0, 1)
-
-        fig_all_heat = px.imshow(
-            heatmap_z.T,
-            color_continuous_scale="RdBu_r",
-            title="Alle Fälle × Variablen (sortiert nach Cluster, z-standardisiert)",
-            aspect="auto",
-            labels=dict(x="Fall", y="Variable", color="z-Wert")
-        )
-        fig_all_heat.update_layout(height=500)
-        # Cluster-Trennlinien einzeichnen
-        cluster_boundaries = df_sorted["Cluster_int"].value_counts().sort_index().cumsum().tolist()
-        for boundary in cluster_boundaries[:-1]:
-            fig_all_heat.add_vline(x=boundary - 0.5, line_color="black", line_width=2)
-        st.plotly_chart(fig_all_heat, use_container_width=True)
-
-    # --- BOXPLOTS ---
-    with vis_tab4:
-        st.markdown("**Boxplots: Variablenverteilung je Cluster**")
-
-        box_var = st.selectbox(
-            "Variable für Boxplot auswählen",
-            cl_vars,
-            key="box_var"
-        )
-
-        fig_box = px.box(
-            df_cl_result, x="Cluster", y=box_var,
-            color="Cluster",
-            points="all",
-            title=f"Boxplot: {box_var} nach Cluster",
-            color_discrete_sequence=px.colors.qualitative.Bold,
-            height=500
-        )
-        st.plotly_chart(fig_box, use_container_width=True)
-
-        # Alle Variablen auf einmal als Subplots
-        st.markdown("**Alle Variablen als Violin-Plots**")
-
-        from plotly.subplots import make_subplots
-
-        n_cols_subplot = 3
-        n_rows_subplot = int(np.ceil(len(cl_vars) / n_cols_subplot))
-
-        fig_violin = make_subplots(
-            rows=n_rows_subplot, cols=n_cols_subplot,
-            subplot_titles=cl_vars
-        )
-
-        cluster_colors = px.colors.qualitative.Bold
-        unique_clusters = sorted(df_cl_result["Cluster"].unique())
-
-        for idx, var in enumerate(cl_vars):
-            row = idx // n_cols_subplot + 1
-            col = idx % n_cols_subplot + 1
-
-            for ci, cluster_label in enumerate(unique_clusters):
-                subset = df_cl_result[df_cl_result["Cluster"] == cluster_label][var].dropna()
-                fig_violin.add_trace(
-                    go.Violin(
-                        y=subset,
-                        name=f"Cluster {cluster_label}",
-                        legendgroup=f"Cluster {cluster_label}",
-                        showlegend=(idx == 0),
-                        fillcolor=cluster_colors[ci % len(cluster_colors)],
-                        line_color=cluster_colors[ci % len(cluster_colors)],
-                        opacity=0.6,
-                        box_visible=True,
-                        meanline_visible=True
-                    ),
-                    row=row, col=col
-                )
-
-        fig_violin.update_layout(
-            height=n_rows_subplot * 280,
-            title_text="Violin-Plots aller Variablen nach Cluster",
-            violinmode="group"
-        )
-        st.plotly_chart(fig_violin, use_container_width=True)
-
-    # --- DENDROGRAMM ---
-    with vis_tab5:
-        if "Hierarchisch" in cl_algo:
-            st.markdown("**Dendrogramm (Hierarchische Clusterung)**")
-
-            max_dendro = st.slider(
-                "Max. Fälle für Dendrogramm (Performance)",
-                10, min(200, len(df_cl_clean)), min(50, len(df_cl_clean)),
-                key="max_dendro"
-            )
-
-            linkage_map_d = {
-                "Hierarchisch (Ward)":     "ward",
-                "Hierarchisch (Complete)": "complete",
-                "Hierarchisch (Average)":  "average"
-            }
-
-            X_dendro = X_cl_scaled[:max_dendro]
-
-            # Firmenbezeichnungen
-            if "Zugehörigkeit" in df.columns:
-                labels_dendro = df.loc[original_idx[:max_dendro], "Zugehörigkeit"].fillna("–").tolist()
-            else:
-                labels_dendro = [str(i) for i in range(max_dendro)]
-
-            linkage_matrix = sch.linkage(X_dendro, method=linkage_map_d[cl_algo])
-
-            import matplotlib
-            matplotlib.use("Agg")
-            import matplotlib.pyplot as plt
-
-            fig_dendro, ax = plt.subplots(figsize=(max(14, max_dendro * 0.3), 7))
-            sch.dendrogram(
-                linkage_matrix,
-                labels=labels_dendro,
-                ax=ax,
-                color_threshold=0,
-                above_threshold_color="#4393c3",
-                orientation="top",
-                leaf_rotation=90
-            )
-            ax.set_title(f"Dendrogramm – {cl_algo} (erste {max_dendro} Fälle)", fontsize=14)
-            ax.set_ylabel("Distanz")
-            ax.spines["top"].set_visible(False)
-            ax.spines["right"].set_visible(False)
-            plt.tight_layout()
-            st.pyplot(fig_dendro)
-            plt.close()
-
-        else:
-            st.info("Das Dendrogramm ist nur für hierarchische Clusterverfahren verfügbar.")
-            st.markdown("Wähle oben **'Hierarchisch (Ward)'**, **'Complete'** oder **'Average'** als Algorithmus.")
-
-    # --- KARTE ---
-    with vis_tab6:
-        st.markdown("**Cluster-Karte: Firmen nach Cluster auf der Österreich-Karte**")
-
-        coords_mask_cl = (
-            df["latitude"].notna() &
-            df["longitude"].notna() &
-            (df["latitude"]  > 46)   &
-            (df["latitude"]  < 49.5) &
-            (df["longitude"] > 9)    &
-            (df["longitude"] < 18.5)
-        )
-
-        df_with_cluster = df.copy()
-        df_with_cluster.loc[original_idx, "Cluster_Label"] = labels.astype(str)
-
-        df_cl_map = df_with_cluster[coords_mask_cl & df_with_cluster["Cluster_Label"].notna()].copy()
-
-        if len(df_cl_map) == 0:
-            st.warning("Keine Firmen mit Koordinaten UND Cluster-Zuordnung verfügbar.")
-        else:
-            cluster_map_colors = [
-                "#e41a1c","#377eb8","#4daf4a","#984ea3",
-                "#ff7f00","#a65628","#f781bf","#999999",
-                "#66c2a5","#fc8d62"
-            ]
-
-            m_cl = folium.Map(location=[47.6, 14.5], zoom_start=7, tiles="CartoDB positron")
-
-            unique_cl_labels = sorted(df_cl_map["Cluster_Label"].unique())
-            color_map_cl = {str(label): cluster_map_colors[i % len(cluster_map_colors)]
-                            for i, label in enumerate(unique_cl_labels)}
-
-            for _, row in df_cl_map.iterrows():
-                cl_label = str(row["Cluster_Label"])
-                farbe = color_map_cl.get(cl_label, "#aaaaaa")
-
-                firma = row.get("Zugehörigkeit", "k.A.")
-                if pd.isna(firma):
-                    firma = "k.A."
-
-                popup_lines = [
-                    f"<b>Firma:</b> {firma}",
-                    f"<b>Cluster:</b> {cl_label}",
-                ]
-                for v in cl_vars[:5]:
-                    if v in row and pd.notna(row[v]):
-                        popup_lines.append(f"<b>{v}:</b> {round(row[v], 2)}")
-
-                popup_html = "<br>".join(popup_lines)
-
-                folium.CircleMarker(
-                    location=[row["latitude"], row["longitude"]],
-                    radius=9,
-                    color="white", weight=1.5,
-                    fill=True,
-                    fill_color=farbe,
-                    fill_opacity=0.92,
-                    popup=folium.Popup(popup_html, max_width=300)
-                ).add_to(m_cl)
-
-            # Legende für Cluster-Karte
-            legend_items = "".join(
-                f'<div style="background:{color_map_cl[str(lbl)]};width:18px;height:18px;'
-                f'display:inline-block;border-radius:50%;margin-right:6px;"></div>'
-                f'Cluster {lbl}<br>'
-                for lbl in unique_cl_labels
-            )
-            cl_legend_html = f"""
-            <div style="position:fixed;bottom:40px;right:40px;z-index:9999;
-            background-color:white;padding:15px;border:2px solid grey;
-            border-radius:10px;font-size:14px;">
-            <b>Cluster</b><br><br>{legend_items}
-            </div>
-            """
-            m_cl.get_root().html.add_child(folium.Element(cl_legend_html))
-
-            st_folium(m_cl, width=1400, height=800)
-
-            # Download: Cluster-Zuweisung
-            st.markdown("---")
-            st.markdown("**Cluster-Zuweisung exportieren**")
-
-            export_cols = ["Zugehörigkeit"] if "Zugehörigkeit" in df.columns else []
-            export_cols += cl_vars
-
-            df_export = df_cl_result[export_cols + ["Cluster"]].copy()
-            if "Zugehörigkeit" in df.columns:
-                df_export.insert(0, "Zugehörigkeit", df.loc[original_idx, "Zugehörigkeit"].values)
-
-            csv_bytes = df_export.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig")
-            st.download_button(
-                label="📥 Cluster-Zuweisung als CSV herunterladen",
-                data=csv_bytes,
-                file_name="cluster_zuweisung.csv",
-                mime="text/csv"
-            )
-
-    # ------------------------------------------------------------------
-    # ABSCHNITT UNTEN — Rohdaten-Tabelle mit Cluster-Zuweisung
-    # ------------------------------------------------------------------
-
-    st.markdown("---")
-    with st.expander("📋 Datentabelle mit Cluster-Zuweisung anzeigen"):
-        show_cols = cl_vars + ["Cluster"]
-        if "Zugehörigkeit" in df.columns:
-            df_show = df_cl_result[cl_vars + ["Cluster"]].copy()
-            df_show.insert(0, "Zugehörigkeit", df.loc[original_idx, "Zugehörigkeit"].values)
-        else:
-            df_show = df_cl_result[cl_vars + ["Cluster"]].copy()
-
-        st.dataframe(
-            df_show.sort_values("Cluster").reset_index(drop=True),
-            use_container_width=True,
-            height=500
-        )
